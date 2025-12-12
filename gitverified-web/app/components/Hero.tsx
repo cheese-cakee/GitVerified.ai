@@ -29,7 +29,7 @@ export default function Hero() {
             System Online: Verification Engine Active
           </div>
 
-          <h1 className="text-6xl md:text-8xl font-bold tracking-tighter leading-[1.1] font-serif italic">
+          <h1 className="text-4xl md:text-6xl font-serif font-thin text-white tracking-tight leading-tight">
             <span className="glow-text">Verification System</span>
             <br />
             <span className="text-gray-400">for Recruiters</span>
