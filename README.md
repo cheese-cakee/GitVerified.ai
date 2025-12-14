@@ -232,53 +232,6 @@ RealEngineers.ai/
 5. **Final Score** → Weighted average + AI reasoning
 6. **Dashboard** → View results with all agent outputs
 
----
-
-## 🎬 Demo Video Checklist
-
-- [ ] Show Kestra UI with pipeline
-- [ ] Highlight Kestra AI Task (Wakanda Data Award)
-- [ ] Show Oumi agent code using Oumi library (Iron Intelligence Award)
-- [ ] Show Oumi training configs
-- [ ] Upload resume and run pipeline
-- [ ] Show parallel agent execution
-- [ ] Show Kestra AI summary with decision
-- [ ] Show final dashboard with scores
-- [ ] Mention CodeRabbit integration plan (Captain Code Award)
-
----
-
-## 📝 For Judges
-
-### Prize Compliance Evidence:
-
-**Wakanda Data Award:**
-
-- File: `gitverified-backend/flows/gitverified_pipeline.yaml` (line 139-151)
-- Task: `kestra-ai-decision` using `io.kestra.plugin.ai.LLMSummarize`
-- Function: Summarizes AND makes decisions (not just summarization)
-
-**Iron Intelligence Award:**
-
-- File: `gitverified-backend/agents/agent_oumi.py` (line 17: `from oumi.inference import LlamaPredictor`)
-- Training: `oumi/train_config.yaml` (DPO fine-tuning)
-- Dataset: `data/resume_judge_dpo.jsonl`
-- Function: LLM-as-a-Judge + RL fine-tuning configured
-
-**Captain Code Award:**
-
-- Plan: GitHub App integration post-submission
-- Evidence: `coderabbit_plan.txt`
-
-### Key Files to Review:
-
-1. `gitverified-backend/flows/gitverified_pipeline.yaml` - Main pipeline
-2. `gitverified-backend/agents/agent_oumi.py` - Oumi integration
-3. `oumi/train_config.yaml` - DPO training config
-4. `HACKATHON_COMPLIANCE.md` - Detailed compliance guide
-
----
-
 ## 🛠️ Development
 
 ### Running Agents Locally:
@@ -298,16 +251,6 @@ python agent_oumi.py github.com/owner/repo
 4. Verify JSON outputs in `agents/data/`
 
 ---
-
-## 📚 Documentation
-
-- `HACKATHON_COMPLIANCE.md` - Prize compliance details
-- `DEMO_SCRIPT.md` - Demo video script
-- `ARCHITECTURE.md` - System architecture
-- `MISSION.MD` - Project mission and goals
-
----
-
 ## 🤝 Contributing
 
 This is a hackathon project. For production use:
@@ -340,7 +283,3 @@ Built for **AI Agents Assemble Hackathon** by WeMakeDevs
 - **Oumi** - LLM fine-tuning framework
 - **CodeRabbit** - Code quality (planned integration)
 - **WeMakeDevs** - Hackathon organizers
-
----
-
-**Ready for Demo! 🚀**
