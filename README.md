@@ -41,6 +41,7 @@ GitVerified uses advanced AI Agents to distinguish "Tutorial Spammers" from "Hig
 - **Status:** Will be integrated post-submission via GitHub App
 - **Plan:** CodeRabbit will review all PRs automatically
 - **Evidence:** PR comments and code quality reports visible in GitHub
+- testing if it actually works here
 
 ---
 
