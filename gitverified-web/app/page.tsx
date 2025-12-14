@@ -17,31 +17,19 @@ export default function Home() {
       {/* Hero Section */}
       <Hero />
 
-      {/* Trust, but verify Section */}
-      <section className="w-full max-w-7xl mx-auto px-6 pt-8 pb-8 text-center">
-         <RevealOnScroll>
-            <h2 className="text-2xl md:text-3xl font-serif font-thin italic text-white mb-2">
-               Trust, but <span className="text-blue-400">verify</span>.
-            </h2>
-            <p className="text-gray-400 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
-               Traditional resumes are full of hallucinations. <br/>
-               GitVerified uses agentic AI to audit the actual source of truth: 
-               <span className="text-white font-medium border-b border-white/20 pb-0.5 ml-2">The Codebase.</span>
-            </p>
-         </RevealOnScroll>
-      </section>
+
 
       {/* Feature 1: Verification */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+      <section className="w-full max-w-7xl mx-auto px-6 py-12 border-t border-white/5">
          <RevealOnScroll className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             
             <div className="space-y-8">
                <div className="inline-block px-3 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase tracking-wider rounded-full">
                   ADAPTIVE VERIFICATION
                </div>
-               <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                  Self-healing audits for <br /> consistently changing repos.
-               </h2>
+                <h2 className="text-4xl md:text-5xl font-serif font-thin text-white tracking-tight">
+                   Self-healing audits for <br /> consistently changing repos.
+                </h2>
                <p className="text-lg text-gray-400 leading-relaxed">
                   Repos change? Branches merge? No problem. GitVerified's agents adapt to project structure changes, correctly identifying core logic even if filenames or architectures shift completely.
                </p>
@@ -78,19 +66,19 @@ export default function Home() {
       </section>
 
       {/* Feature 2: Anti-Cheat */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
-         <RevealOnScroll className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="w-full max-w-7xl mx-auto px-6 py-12 border-t border-white/5">
+         <RevealOnScroll className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             
             <div className="lg:order-2 space-y-8">
                <div className="inline-block px-3 py-1 bg-red-500/10 text-red-400 text-xs font-bold uppercase tracking-wider rounded-full">
                   INTELLIGENT FRAUD DETECTION
                </div>
-               <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                  Catch what the human eye <br /> misses completely.
-               </h2>
-               <p className="text-lg text-gray-400 leading-relaxed">
-                  From "white text" keywords to copy-pasted tutorial code, our agents run forensic analysis on commit history to ensure the candidate actually wrote the code they claim.
-               </p>
+                <h2 className="text-4xl md:text-5xl font-serif font-thin text-white tracking-tight">
+                   The "God Mode" <br /> Integrity Gate.
+                </h2>
+                <p className="text-lg text-gray-400 leading-relaxed">
+                   We have zero tolerance for deception. Our agents instantly auto-reject candidates using <strong>"White Text"</strong> hacks, 0% opacity keywords, or resume stuffers who list skills they've never coded in.
+                </p>
                <Link href="/docs/security" className="inline-flex items-center text-red-400 font-semibold hover:text-red-300 transition-colors">
                   See Security Specs <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                </Link>
@@ -134,11 +122,77 @@ export default function Home() {
          </RevealOnScroll>
       </section>
 
-      {/* The Problem: ATS vs GitVerified */}
-      <section className="w-full max-w-7xl mx-auto px-6 pb-32">
+      {/* Feature 3: The Algo Engine (Mission Phase 3) */}
+      <section className="w-full max-w-7xl mx-auto px-6 py-12 border-t border-white/5">
+         <RevealOnScroll className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            
+            <div className="space-y-8">
+               <div className="inline-block px-3 py-1 bg-yellow-500/10 text-yellow-400 text-xs font-bold uppercase tracking-wider rounded-full">
+                  THE ALGO ENGINE
+               </div>
+                <h2 className="text-4xl md:text-5xl font-serif font-thin text-white tracking-tight">
+                   Measure <span className="text-yellow-400">Growth Slope</span>, <br /> not just Activity.
+                </h2>
+                <p className="text-lg text-gray-400 leading-relaxed">
+                   We distinguish "Learners" from "Spammers". We track LeetCode rating improvement over <strong>4-6 months</strong> and flag unnatural velocity spikes (e.g. 15 hard problems in 1 hour). We hire for trajectory.
+                </p>
+               <div className="flex flex-col gap-3">
+                   <div className="flex items-center gap-3 text-gray-300">
+                       <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                       <span>Velocity Analysis (Hard problems / 24h)</span>
+                   </div>
+                   <div className="flex items-center gap-3 text-gray-300">
+                       <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                       <span>Execution Time Percentile Checks</span>
+                   </div>
+               </div>
+            </div>
+
+            <div className="relative h-[400px] bg-gradient-to-tr from-gray-900 to-black rounded-2xl border border-white/10 overflow-hidden group flex items-center justify-center">
+               <div className="absolute inset-0 bg-grid opacity-10"></div>
+               
+               {/* Visual: Grinder Pattern vs Cheater Spikes */}
+               <div className="relative w-full max-w-md p-6 space-y-4">
+                  {/* Grinder Card */}
+                  <div className="glass-card p-4 rounded-xl border border-white/5 bg-black/50 transform translate-x-4 animate-fade-in-up">
+                     <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-2">
+                           <span className="text-green-500 font-bold text-sm">Valid Grinder</span>
+                           <span className="text-xs text-gray-500">6 Month Consistency</span>
+                        </div>
+                        <div className="text-xs text-green-400 font-mono">P-SCORE +15</div>
+                     </div>
+                     <div className="flex gap-1 items-end h-10 w-full">
+                        {[2,3,4,3,5,4,6,5,4,3,5,6,5,4,3,2,3,4,5].map((h, i) => (
+                           <div key={i} className="flex-1 bg-green-500/40 rounded-sm" style={{ height: `${h * 10}%` }}></div>
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* Cheater Card */}
+                  <div className="glass-card p-4 rounded-xl border border-red-500/30 bg-red-900/10 transform -translate-x-4 border-l-4 border-l-red-500 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                     <div className="flex justify-between items-center mb-1">
+                        <div>
+                           <div className="text-xs text-red-400 uppercase font-bold tracking-wider">Suspicious Activity</div>
+                           <div className="text-white font-bold text-lg">Velocity Spike</div>
+                        </div>
+                        <div className="px-2 py-1 bg-red-500 text-black text-xs font-bold rounded">FLAGGED</div>
+                     </div>
+                     <div className="mt-2 text-xs text-gray-400 font-mono">
+                        {">"} 50 Hard Problems Solved in 2h
+                        <br/>
+                        {">"} Execution Time: 99th Percentile (Exact Match)
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+         </RevealOnScroll>
+      </section>
+      <section className="w-full max-w-7xl mx-auto px-6 pb-12">
         <RevealOnScroll>
-            <div className="text-center mb-16 space-y-4">
-                <h2 className="text-3xl md:text-5xl font-serif font-bold italic text-white">The <span className="text-red-400">Broken</span> Filter.</h2>
+            <div className="text-center mb-8 space-y-4">
+                <h2 className="text-4xl md:text-5xl font-serif font-thin text-white">The <span className="text-red-400">Broken</span> Filter.</h2>
                 <p className="text-gray-400 max-w-2xl mx-auto text-lg">
                 75% of qualified resumes are rejected by ATS bots before a human ever sees them. 
                 <br/>Recruiters miss hidden gems; Candidates hit a brick wall.
@@ -152,7 +206,7 @@ export default function Home() {
             <div className="glass-card p-8 rounded-2xl border border-red-500/10 bg-red-900/5 relative overflow-hidden group hover:border-red-500/30 transition-colors">
                <div className="absolute top-0 right-0 bg-red-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">TRADITIONAL ATS</div>
                
-               <h3 className="text-xl font-bold text-white mb-6">keyword_match("Java")</h3>
+               <h3 className="text-2xl font-serif font-thin text-white mb-6">keyword_match("Java")</h3>
                
                {/* Visual Funnel */}
                <div className="space-y-4">
@@ -179,7 +233,7 @@ export default function Home() {
             <div className="glass-card p-8 rounded-2xl border border-green-500/10 bg-green-900/5 relative overflow-hidden group hover:border-green-500/30 transition-colors">
                <div className="absolute top-0 right-0 bg-green-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">GITVERIFIED AGENTS</div>
                
-               <h3 className="text-xl font-bold text-white mb-6">Agent.audit(codebase)</h3>
+               <h3 className="text-2xl font-serif font-thin text-white mb-6">Agent.audit(codebase)</h3>
                
                {/* Visual Funnel */}
                <div className="space-y-4">
@@ -201,6 +255,70 @@ export default function Home() {
                   "Identifies talent based on actual code quality, not PDF hacking."
                </p>
             </div>
+
+        </RevealOnScroll>
+      </section>
+
+      <section className="w-full max-w-7xl mx-auto px-6 pb-12">
+        <RevealOnScroll>
+          {/* Feature Card (Kestra Style Layout but Dark) */}
+          <div className="glass-card p-12 rounded-3xl border border-white/10 bg-white/5 mb-20 relative overflow-hidden">
+             
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
+                {/* Feature 1 */}
+                <div className="text-center space-y-4 group">
+                   <div className="w-16 h-16 mx-auto bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
+                      <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                   </div>
+                   <h3 className="text-2xl font-serif font-thin text-white">Oumi Uniqueness</h3>
+                   <p className="text-gray-400 text-sm leading-relaxed">
+                      Our Oumi-powered LLM Judge reads code intent. It distinguishes "Generic Tutorials" (1/10) from "Novel Engineering" (10/10).
+                   </p>
+                </div>
+
+                {/* Feature 2 */}
+                <div className="text-center space-y-4 group">
+                   <div className="w-16 h-16 mx-auto bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20 group-hover:bg-purple-500/20 transition-colors">
+                      <svg className="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                   </div>
+                   <h3 className="text-2xl font-serif font-thin text-white">Kestra Decision Core</h3>
+                   <p className="text-gray-400 text-sm leading-relaxed">
+                      Kestra orchestrates the entire forensic pipeline, using AI to synthesize signals from all agents into a final "Hire/No-Hire" verdict.
+                   </p>
+                </div>
+
+                {/* Feature 3 */}
+                <div className="text-center space-y-4 group">
+                   <div className="w-16 h-16 mx-auto bg-green-500/10 rounded-2xl flex items-center justify-center border border-green-500/20 group-hover:bg-green-500/20 transition-colors">
+                      <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                   </div>
+                   <h3 className="text-2xl font-serif font-thin text-white">CodeRabbit Quality</h3>
+                   <p className="text-gray-400 text-sm leading-relaxed">
+                      CodeRabbit performs a deep semantic audit. We don't just check syntax; we check for maintainability, security, and SOLID principles.
+                   </p>
+                </div>
+             </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center border-t border-white/5 pt-12">
+             <div>
+                <div className="text-3xl md:text-4xl font-bold text-white mb-2">10k+</div>
+                <div className="text-sm text-gray-500 font-medium uppercase tracking-wider">Candidates Verified</div>
+             </div>
+             <div>
+                <div className="text-3xl md:text-4xl font-bold text-white mb-2">500+</div>
+                <div className="text-sm text-gray-500 font-medium uppercase tracking-wider">Engineering Teams</div>
+             </div>
+             <div>
+                <div className="text-3xl md:text-4xl font-bold text-white mb-2">98%</div>
+                <div className="text-sm text-gray-500 font-medium uppercase tracking-wider">Time Saved</div>
+             </div>
+             <div>
+                <div className="text-3xl md:text-4xl font-bold text-white mb-2">1M+</div>
+                <div className="text-sm text-gray-500 font-medium uppercase tracking-wider">Lines Audited</div>
+             </div>
+          </div>
 
         </RevealOnScroll>
       </section>

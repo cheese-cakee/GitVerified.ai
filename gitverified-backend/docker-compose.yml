@@ -1,0 +1,53 @@
+version: "3.8"
+
+volumes:
+  postgres-data:
+  kestra-data:
+
+networks:
+  kestra-net:
+
+services:
+  postgres:
+    image: postgres:14
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: kestra
+    ports:
+      - "5432:5432"
+    networks:
+      - kestra-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kestra"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kestra:
+    image: kestra/kestra:latest
+    command: server local --config /app/kestra.yml
+    ports:
+      - "8080:8080"
+    volumes:
+      - kestra-data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app/gitverified
+      - ./flows:/app/flows
+      - ./agents:/app/agents
+      - ./kestra.yml:/app/kestra.yml
+    networks:
+      - kestra-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  python-worker:
+    build: .
+    volumes:
+      - ./agents:/app/agents
+    command: tail -f /dev/null
+    networks:
+      - kestra-net

@@ -1,99 +1,107 @@
-import Link from "next/link";
-import { getLeaderboardData } from "../lib/api";
+"use client";
 
-export default async function Dashboard() {
-    const CANDIDATES = await getLeaderboardData();
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
-    return (
-        <div className="min-h-screen bg-black text-white p-8 font-sans selection:bg-white/20">
+export default function Dashboard() {
+  // Mock Data representing a Completed Scan
+  const candidate = {
+    name: "Alex Chen",
+    role: "Senior Frontend Engineer",
+    p_score: 92,
+    verdict: "HIGH POTENTIAL",
+    summary: "Candidate demonstrates elite algorithmic growth (+200 pts/6mo) and unique engineering intent. Code quality is high (A-), with minor security debt.",
+    signals: {
+      algo: { score: 95, label: "Grinder", detail: "Top 5% Consistency" },
+      oumi: { score: 8.5, label: "Novel", detail: "Custom Kernel Implementation" },
+      rabbit: { score: 88, label: "Clean", detail: "Follows SOLID Principles" },
+      integrity: { score: 100, label: "Verified", detail: "No White Text Detected" }
+    }
+  };
 
-            {/* Header */}
-            <header className="flex justify-between items-center mb-12 max-w-6xl mx-auto">
-                <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-white rounded-full"></div>
-                    <h1 className="text-xl font-semibold tracking-tight">GitVerified <span className="text-gray-500 font-normal">/ Batch #004</span></h1>
-                </div>
-                <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">Log out</Link>
-            </header>
-
-            {/* Main Content */}
-            <main className="max-w-6xl mx-auto">
-                <div className="flex justify-between items-end mb-6">
-                    <div>
-                        <h2 className="text-3xl font-bold glow-text mb-2">Leaderboard</h2>
-                        <p className="text-gray-400">Top candidates sorted by P-Score (Passion + Truth + Code).</p>
-                    </div>
-                    <div className="flex gap-4">
-                        <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-md text-sm text-gray-300 hover:bg-white/10 transition-colors">
-                            Export CSV
-                        </button>
-                        <button className="px-4 py-2 bg-white text-black rounded-md text-sm font-semibold hover:bg-gray-200 transition-colors">
-                            Start New Batch
-                        </button>
-                    </div>
-                </div>
-
-                {/* Table Card */}
-                <div className="border border-white/10 rounded-xl overflow-hidden bg-black/50 backdrop-blur-md">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-white/10 bg-white/5 text-xs uppercase tracking-wider text-gray-500">
-                                <th className="px-6 py-4 font-medium">Rank</th>
-                                <th className="px-6 py-4 font-medium">Candidate</th>
-                                <th className="px-6 py-4 font-medium">Status</th>
-                                <th className="px-6 py-4 font-medium">P-Score</th>
-                                <th className="px-6 py-4 font-medium">Flags</th>
-                                <th className="px-6 py-4 font-medium text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {CANDIDATES.map((c, i) => (
-                                <tr key={c.id} className="group hover:bg-white/5 transition-colors">
-                                    <td className="px-6 py-4 text-gray-500 font-mono text-sm">#{i + 1}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-white">{c.name}</div>
-                                        <div className="text-xs text-gray-500">ID: {c.id}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <Badge status={c.status} />
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-lg font-bold ${getScoreColor(c.p_score)}`}>{c.p_score}</span>
-                                            <span className="text-xs text-gray-600">/100</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-sm text-gray-400">{c.flag}</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button className="text-sm text-gray-500 hover:text-white transition-colors">View Report &rarr;</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </main>
+  return (
+    <main className="min-h-screen flex flex-col items-center bg-black text-white selection:bg-purple-500/30">
+      <Header />
+      
+      <div className="w-full max-w-7xl px-6 pt-32 pb-20">
+        
+        {/* Header Section */}
+        <div className="flex justify-between items-end mb-12 border-b border-white/10 pb-8">
+          <div>
+            <div className="text-sm font-mono text-gray-500 mb-2">Audit Report #8X29-A</div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{candidate.name}</h1>
+            <div className="text-xl text-gray-400">{candidate.role}</div>
+          </div>
+          <div className="text-right">
+             <div className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">P-Score</div>
+             <div className="text-6xl font-bold text-green-400">{candidate.p_score}</div>
+          </div>
         </div>
-    );
-}
 
-function Badge({ status }: { status: string }) {
-    const isInterview = status === "INTERVIEW";
-    return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${isInterview
-            ? "bg-green-500/10 text-green-500 border-green-500/20"
-            : "bg-red-500/10 text-red-500 border-red-500/20"
-            }`}>
-            {isInterview && <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>}
-            {status}
-        </span>
-    )
-}
+        {/* Verdict Banner */}
+        <div className="w-full bg-green-500/10 border border-green-500/20 rounded-2xl p-6 mb-12 flex items-start gap-4">
+           <div className="p-3 bg-green-500/20 rounded-full">
+              <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+           </div>
+           <div>
+              <h3 className="text-xl font-bold text-white mb-1">Verdict: {candidate.verdict}</h3>
+              <p className="text-gray-300 leading-relaxed font-light">
+                 {candidate.summary}
+              </p>
+           </div>
+        </div>
 
-function getScoreColor(score: number) {
-    if (score >= 90) return "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]";
-    if (score >= 70) return "text-yellow-400";
-    return "text-red-500";
+        {/* The Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           
+           {/* Algo Card */}
+           <div className="glass-card p-6 rounded-xl border border-white/10 hover:border-yellow-500/30 transition-colors group">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex justify-between">
+                 <span>Algo Engine</span>
+                 <span className="text-yellow-500 group-hover:animate-pulse">Active</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{candidate.signals.algo.score}</div>
+              <div className="text-lg text-yellow-400 font-medium mb-2">{candidate.signals.algo.label}</div>
+              <div className="text-sm text-gray-400 font-mono">{candidate.signals.algo.detail}</div>
+           </div>
+
+           {/* Oumi Card */}
+           <div className="glass-card p-6 rounded-xl border border-white/10 hover:border-blue-500/30 transition-colors group">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex justify-between">
+                 <span>Oumi Uniqueness</span>
+                 <span className="text-blue-500 group-hover:animate-pulse">Active</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{candidate.signals.oumi.score}/10</div>
+              <div className="text-lg text-blue-400 font-medium mb-2">{candidate.signals.oumi.label}</div>
+              <div className="text-sm text-gray-400 font-mono">{candidate.signals.oumi.detail}</div>
+           </div>
+
+           {/* CodeRabbit Card */}
+           <div className="glass-card p-6 rounded-xl border border-white/10 hover:border-purple-500/30 transition-colors group">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex justify-between">
+                 <span>CodeRabbit Quality</span>
+                 <span className="text-purple-500 group-hover:animate-pulse">Active</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{candidate.signals.rabbit.score}</div>
+              <div className="text-lg text-purple-400 font-medium mb-2">{candidate.signals.rabbit.label}</div>
+              <div className="text-sm text-gray-400 font-mono">{candidate.signals.rabbit.detail}</div>
+           </div>
+
+           {/* Integrity Card */}
+           <div className="glass-card p-6 rounded-xl border border-white/10 hover:border-red-500/30 transition-colors group">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex justify-between">
+                 <span>Integrity Gate</span>
+                 <span className="text-red-500 group-hover:animate-pulse">Locked</span>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{candidate.signals.integrity.score}%</div>
+              <div className="text-lg text-green-400 font-medium mb-2">{candidate.signals.integrity.label}</div>
+              <div className="text-sm text-gray-400 font-mono">{candidate.signals.integrity.detail}</div>
+           </div>
+
+        </div>
+
+      </div>
+      <Footer />
+    </main>
+  );
 }

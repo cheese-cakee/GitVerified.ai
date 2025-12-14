@@ -19,11 +19,11 @@ export default function MainEngine() {
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const [steps, setSteps] = useState<Step[]>([
-    { id: 'identity', label: 'Identity Verification', status: 'pending', logs: [] },
-    { id: 'leetcode_scan', label: 'LeetCode Proficiency Scan', status: 'pending', logs: [] },
-    { id: 'github_audit', label: 'GitHub Deep Audit (CodeRabbit)', status: 'pending', logs: [] },
-    { id: 'oumi_analysis', label: 'Behavioral Analysis (Oumi)', status: 'pending', logs: [] },
-    { id: 'score', label: 'Final Scoring', status: 'pending', logs: [] },
+    { id: 'kestra_init', label: 'Booting Kestra Orchestrator...', status: 'pending', logs: [] },
+    { id: 'leetcode_scan', label: 'Algo Velocity Check (LeetCode)', status: 'pending', logs: [] },
+    { id: 'github_audit', label: 'CodeRabbit Security Audit', status: 'pending', logs: [] },
+    { id: 'oumi_analysis', label: 'Oumi Semantic Uniqueness', status: 'pending', logs: [] },
+    { id: 'score', label: 'Calculating P-Score', status: 'pending', logs: [] },
   ]);
 
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
@@ -202,27 +202,24 @@ export default function MainEngine() {
           {/* RIGHT: Input */}
           <div className="w-80 glass-card rounded-xl p-6 border-white/10 flex flex-col gap-6">
                <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Input Source</h3>
-                  
-                  {/* Upload Simulation Buttons */}
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                       <button onClick={() => handleSimulatedUpload(1)} className={`text-xs py-1 rounded border ${uploadedFiles === 1 ? 'bg-white text-black border-white' : 'border-white/10 hover:bg-white/5 text-gray-400'}`}>
-                           Demo Single
-                       </button>
-                       <button onClick={() => handleSimulatedUpload(5)} className={`text-xs py-1 rounded border ${uploadedFiles > 1 ? 'bg-white text-black border-white' : 'border-white/10 hover:bg-white/5 text-gray-400'}`}>
-                           Demo Batch
-                       </button>
-                  </div>
+                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Target Repository</h3>
+                   
+                   <div className="space-y-3">
+                       <input 
+                          type="text" 
+                          placeholder="https://github.com/username/repo" 
+                          className="w-full bg-white/5 border border-white/10 rounded p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                       />
+                       <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="LeetCode Username" 
+                            className="flex-1 bg-white/5 border border-white/10 rounded p-3 text-sm text-white focus:outline-none focus:border-yellow-500 transition-colors"
+                          />
+                       </div>
+                   </div>
 
-                  <div className={`border-2 border-dashed border-white/10 rounded-lg h-32 flex flex-col items-center justify-center text-center p-4 transition-all ${uploadedFiles > 0 ? 'bg-white/5 border-green-500/50' : ''}`}>
-                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                      </div>
-                      <span className="text-xs text-gray-400">
-                          {uploadedFiles === 0 ? 'Drop resume or repo URL' : `${uploadedFiles} File(s) Ready`}
-                      </span>
-                  </div>
-               </div>
+                   </div>
 
                <div>
                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Config</h3>
