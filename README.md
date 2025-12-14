@@ -90,7 +90,7 @@ This starts:
 
 Login to Kestra UI: http://localhost:8080
 
-- **Username:** `farzanaman99@gmail.com`
+- **Username:** `yourname`
 - **Password:** `********`
 
 ### 3. Register Flow:
