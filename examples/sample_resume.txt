@@ -1,0 +1,45 @@
+# Example resume for testing
+John Doe
+john.doe@email.com | (555) 123-4567 | github.com/johndoe
+
+PROFESSIONAL SUMMARY
+Experienced software developer with 5+ years building scalable web applications. 
+Proficient in Python, JavaScript, React, and cloud deployment technologies.
+
+TECHNICAL SKILLS
+- Languages: Python, JavaScript, TypeScript, SQL
+- Frameworks: React, Node.js, Django, Flask
+- Cloud: AWS (EC2, S3, Lambda), Docker, Kubernetes
+- Databases: PostgreSQL, MongoDB, Redis
+- Tools: Git, CI/CD, Agile Methodologies
+
+WORK EXPERIENCE
+Senior Software Engineer | TechCorp Inc. | 2020-Present
+- Led development of microservices architecture serving 1M+ users
+- Implemented automated testing reducing bugs by 40%
+- Mentored junior developers and conducted code reviews
+
+Software Developer | StartupXYZ | 2018-2020
+- Built React frontend for customer dashboard
+- Developed REST APIs using Node.js and Express
+- Deployed applications on AWS infrastructure
+
+PROJECTS
+E-Commerce Platform | github.com/johndoe/ecommerce
+- Full-stack application with React and Django
+- Implemented payment processing and inventory management
+- Deployed with Docker and automated CI/CD pipeline
+
+Real-time Chat Application | github.com/johndoe/chatapp
+- WebSocket-based chat with Node.js and Socket.io
+- Real-time message delivery and user authentication
+- Scalable architecture supporting 10K+ concurrent users
+
+EDUCATION
+Bachelor of Science in Computer Science
+State University | 2014-2018
+GPA: 3.8/4.0
+
+CERTIFICATIONS
+- AWS Certified Developer - Associate (2021)
+- Google Cloud Professional - Cloud Developer (2022)

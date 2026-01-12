@@ -1,0 +1,25 @@
+# CandidateAI - Local AI-Powered Candidate Evaluation
+# Requirements for self-reliant local operation
+
+# Core dependencies
+requests>=2.31.0          # HTTP requests (optional GitHub API)
+python-dotenv>=1.0.0     # Environment variables
+structlog>=23.2.0        # Logging
+
+# PDF processing (optional - for resume text extraction)
+# Uncomment if you want PDF text extraction:
+# pymupdf>=1.23.0         # PDF text extraction
+# pdfplumber>=0.10.0     # Alternative PDF processing
+
+# Local LLM interface (Ollama)
+# No pip install needed - Ollama runs as separate service
+
+# Optional web interface (commented out - not needed for core functionality)
+# fastapi>=0.104.0
+# uvicorn>=0.24.0
+# pydantic>=2.5.0
+
+# Development dependencies (uncomment for development)
+# pytest>=7.0.0
+# black>=23.0.0
+# flake8>=6.0.0

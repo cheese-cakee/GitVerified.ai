@@ -1,0 +1,54 @@
+# Sample PDF Content for Demo - High Potential Candidate
+
+John Anderson
+Senior Frontend Developer
+john.anderson@email.com | (555) 123-4567 | linkedin.com/in/johnanderson
+
+PROFESSIONAL SUMMARY
+Innovative frontend developer with 5 years of experience building scalable web applications using React, TypeScript, and modern JavaScript frameworks. Passionate about creating exceptional user experiences and mentoring junior developers.
+
+TECHNICAL SKILLS
+• Frontend: React, TypeScript, JavaScript (ES6+), Next.js, Vue.js
+• Backend: Node.js, Express, Python, PostgreSQL
+• Tools: Git, Docker, Webpack, Jest, CI/CD
+• Cloud: AWS, Vercel, Netlify
+
+PROFESSIONAL EXPERIENCE
+
+Senior Frontend Developer | TechCorp Inc. | 2021-Present
+• Led development of customer-facing React applications serving 100K+ users
+• Implemented TypeScript migration, reducing runtime errors by 60%
+• Mentored 3 junior developers and conducted code reviews
+• Optimized application performance, improving Core Web Vitals by 40%
+
+Frontend Developer | StartupXYZ | 2019-2021
+• Built responsive web applications using React and Redux
+• Collaborated with UX team to implement design system
+• Developed component library used across 5 products
+
+PERSONAL PROJECTS
+
+Real-Time Collaboration Platform (GitHub: github.com/johnanderson/collab-app)
+• Built real-time collaborative document editor using React and WebSockets
+• Implemented operational transformation for conflict resolution
+• Deployed to AWS with 99.9% uptime for 6 months
+• 200+ GitHub stars, active open source community
+
+Machine Learning Portfolio Site (GitHub: github.com/johnanderson/ml-portfolio)
+• Interactive portfolio showcasing ML projects using Three.js and React
+• Implemented GPU-accelerated visualizations in browser
+• Featured in CSS-Tricks newsletter
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of Technology | 2015-2019
+• GPA: 3.8/4.0, Dean's List all semesters
+• President of Computer Science Club
+
+CERTIFICATIONS
+• AWS Certified Developer - Associate (2023)
+• React Advanced Patterns & Best Practices (2022)
+
+GitHub: github.com/johnanderson
+LeetCode: leetcode.com/johnanderson
+Portfolio: johnanderson.dev
