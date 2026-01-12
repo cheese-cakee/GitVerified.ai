@@ -1,0 +1,46 @@
+# Environment files - NEVER commit these!
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.Python
+env/
+venv/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Models cache (large files)
+models/
+*.gguf
+*.bin
+
+# Test data
+*.pdf
+data/test/
