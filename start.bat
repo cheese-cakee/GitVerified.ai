@@ -1,29 +1,38 @@
 @echo off
-echo Starting CandidateAI Hybrid System...
+echo.
+echo ========================================
+echo   CandidateAI - Local AI Evaluation
+echo   100%% Free, 100%% Private
+echo ========================================
 echo.
 
-REM Check if Docker Desktop is running
-tasklist | find /c /Windows/System32/cmd.exe /c ica~1 | findstr "docker.exe"
+REM Check if Ollama is installed
+where ollama >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [!] Ollama not found. Please install from https://ollama.ai
+    echo.
+    pause
+    exit /b 1
+)
 
-REM Start Docker services if not running
-docker-compose -f docker-compose.simple.yml up -d
+echo [1/4] Starting Ollama...
+start /min ollama serve
 
-REM Start Python backend server if not running
-"C:\Users\lenovo\AppData\Local\Programs\Microsoft\WindowsApps\python.exe" "C:\Users\lenovo\RealEngineers.ai\start_hybrid_system.py"
+echo [2/4] Waiting for Ollama to start...
+timeout /t 3 /nobreak >nul
 
-REM Start web interface
-start "" "C:\Users\lenovo\RealEngineers.ai\web\upload.html"
+echo [3/4] Checking for model...
+ollama list | findstr "qwen2:1.5b" >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo      Downloading qwen2:1.5b model (1GB)...
+    ollama pull qwen2:1.5b
+)
 
-echo ✅ System started successfully!
+echo [4/4] Starting API Server...
 echo.
+echo ========================================
+echo   Ready! Open http://localhost:3000
+echo ========================================
 echo.
-echo 🚀 Open these URLs when ready:
-echo   - Kestra Dashboard: http://localhost:8081
-echo   - Web Interface: http://localhost:3000
-echo   - Resume Evaluation: http://localhost:3000/evaluate
-echo.
-echo.
-echo 📋 All services running!
 
-PAUSE
-pause
+python api_server.py

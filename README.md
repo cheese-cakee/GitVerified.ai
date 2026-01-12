@@ -1,157 +1,110 @@
 # CandidateAI - Local AI-Powered Candidate Evaluation
 
-## 🎯 Mission
-**Empowering companies with free, private, local AI to distinguish exceptional candidates from tutorial followers.**
+**100% Free. 100% Private. 100% Local.**
 
-## 🏗️ Local-First Architecture
-```
-Resume Upload → Local AI Analysis → Comprehensive Evaluation
-                  ↓
-        ┌─────────────────────────┐
-        │  Local AI Agents        │
-        ├─────────────────────────┤
-        │  Integrity Scanner      │  ← PDF fraud detection
-        │  Code Quality Analyzer  │  ← Security & best practices  
-        │  Project Uniqueness Judge│  ← Tutorial clone detection
-        │  Skills Evaluator       │  ← Job matching
-        │  Final Synthesis Engine │  ← Hiring recommendation
-        └─────────────────────────┘
+Evaluate candidates using local AI models - no API tokens, no subscriptions, no data leaving your machine.
+
+## 🚀 Quick Start (5 Minutes)
+
+### 1. Install Ollama
+
+Download from [ollama.ai](https://ollama.ai/download) or:
+
+```bash
+# Windows: Download installer from website
+# Mac/Linux:
+curl -fsSL https://ollama.ai/install.sh | sh
 ```
 
-## 🚀 What Makes Us Different
+### 2. Download AI Model
 
-### ❌ Traditional SaaS (Expensive)
-- $0.10+ per evaluation
-- Sends data to third parties
-- Monthly subscriptions
-- Privacy concerns
+```bash
+ollama pull qwen2:1.5b
+```
 
-### ✅ CandidateAI (Free & Local)
-- **$0 forever** - No recurring costs
-- **100% private** - Data never leaves your machine
-- **Works offline** - No internet required
-- **Unlimited evaluations** - No usage limits
+### 3. Start Backend
 
-## 💡 Core Technology
+```bash
+# Windows
+start.bat
 
-### Local LLM Stack
-- **Ollama** - Free local inference engine
-- **Qwen2:1.5B** - 1GB model, runs on any laptop
-- **Heuristics** - Fallback analysis for edge cases
-- **No external dependencies** - Complete self-reliance
+# Or manually:
+python api_server.py
+```
 
-### Evaluation Capabilities
+### 4. Start Frontend
 
-✅ **What We Detect Well**
-- Tutorial clones (Todo apps, Weather apps, Netflix clones)
-- Plagiarized code patterns
-- Basic security vulnerabilities
-- Resume fraud (hidden text, keyword stuffing)
-- Poor project complexity
+```bash
+cd gitverified-web
+npm install
+npm run dev
+```
 
-⚠️ **Advanced Features**
-- Nuanced architecture analysis
-- Domain-specific expertise
-- Complex problem-solving assessment
-- Cultural fit evaluation
+### 5. Open http://localhost:3000/engine
 
-## 🛠️ Quick Start
+## 🏗️ Architecture
 
-### Prerequisites
-- **Any laptop** (8GB+ RAM recommended)
-- **Python 3.9+**
-- **Node.js 18+** (for web interface)
+```
+Frontend (Next.js :3000)
+    │
+    ▼
+Backend (Python :3001)
+    │
+    ├── Integrity Agent
+    ├── Code Quality Agent
+    ├── Uniqueness Agent
+    └── Relevance Agent
+         │
+         ▼
+    Ollama (qwen2:1.5b :11434)
+```
 
-### 5-Minute Setup
+## 📊 What Gets Evaluated
 
-1. **Install Ollama**
-   ```bash
-   # Windows: https://ollama.ai/download
-   # Mac/Linux: curl -fsSL https://ollama.ai/install.sh | sh
-   ```
+| Agent        | Score | What It Checks                                     |
+| ------------ | ----- | -------------------------------------------------- |
+| Integrity    | 0-10  | Resume authenticity, hidden text, keyword stuffing |
+| Code Quality | 0-100 | Security, best practices, documentation            |
+| Uniqueness   | 0-10  | Original work vs tutorial clones                   |
+| Relevance    | 0-10  | Job requirements match                             |
 
-2. **Download Models**
-   ```bash
-   ollama pull qwen2:1.5b    # 1GB model
-   ollama pull tinyllama     # 600MB fallback
-   ```
+## 💰 Cost Comparison
 
-3. **Start Evaluation**
-   ```bash
-   git clone https://github.com/yourorg/candidateai
-   cd candidateai
-   python evaluate.py resume.pdf job_description.txt
-   ```
+| Solution         | Cost           | Privacy           |
+| ---------------- | -------------- | ----------------- |
+| Traditional SaaS | $0.10+/eval    | ❌ Data shared    |
+| **CandidateAI**  | **$0 forever** | ✅ **100% local** |
 
-## 📊 Evaluation Results
+## 🔧 Optional: Kestra Workflows
 
-Each candidate receives:
-- **Integrity Score** (0-10) - Resume authenticity
-- **Code Quality Score** (0-100) - Security & best practices
-- **Project Uniqueness Score** (0-10) - Tutorial vs novel work
-- **Relevance Score** (0-10) - Job matching
-- **Overall Recommendation** - PASS/WAITLIST/REJECT
+For parallel processing of multiple candidates:
 
-## 🎯 Use Cases
+```bash
+docker-compose -f docker-compose.hybrid.yml up -d
+# Access Kestra UI: http://localhost:8080
+```
 
-### Perfect For
-- **Tech startups** hiring junior developers
-- **Hackathon candidate screening**
-- **University recruiting programs**
-- **Bootcamp graduate evaluation**
-- **Remote hiring** (no data sharing concerns)
+## 📁 Project Structure
 
-### Not Ideal For
-- Senior architect roles (needs nuanced assessment)
-- Highly specialized domains (ML, aerospace, etc.)
-- Enterprise compliance requirements
-
-## 🔧 Development
-
-### Project Structure
 ```
 candidateai/
-├── agents/              # Local AI evaluation agents
-│   ├── integrity.py     # Resume fraud detection
-│   ├── code_quality.py # Security analysis
-│   ├── uniqueness.py   # Project originality
-│   └── relevance.py     # Job matching
-├── web/                 # Optional web interface
-│   ├── upload/         # Resume upload page
-│   └── dashboard/      # Results display
-├── models/             # Downloaded AI models
-├── data/               # Sample resumes & results
-└── evaluate.py         # CLI evaluation tool
+├── api_server.py         # Python API server
+├── agents/               # AI evaluation agents
+│   ├── hybrid_model.py   # Ollama integration
+│   ├── integrity.py
+│   ├── code_quality.py
+│   ├── uniqueness.py
+│   └── relevance.py
+├── gitverified-web/      # Next.js frontend
+├── flows/                # Kestra workflows
+├── start.bat             # Windows quick start
+└── docker-compose.hybrid.yml
 ```
-
-### Adding New Agents
-```python
-# Create custom evaluation agent
-class CustomAgent:
-    def evaluate(self, candidate_data):
-        # Your custom logic here
-        return {"score": 7.5, "reasoning": "Strong candidate"}
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Focus areas:
-- **Model improvements** - Better local models
-- **New evaluation criteria** - Industry-specific needs
-- **Performance optimization** - Faster inference
-- **UI enhancements** - Better user experience
 
 ## 📄 License
 
 MIT License - Use freely in your hiring process.
 
-## 🌟 Why This Matters
-
-- **Democratizes access** to AI-powered hiring
-- **Protects candidate privacy** - data stays local
-- **Reduces hiring costs** - eliminates SaaS fees
-- **Enables fair evaluation** - consistent, unbiased scoring
-
 ---
 
-**Built with ❤️ for the community of builders and innovators**
+**Built for engineers who value privacy and hate subscriptions.**
