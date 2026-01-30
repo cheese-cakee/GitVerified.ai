@@ -14,7 +14,6 @@ type Step = {
 type SystemStatus = {
   backend: boolean;
   ollama: boolean;
-  kestra: boolean;
   models: string[];
   ready: boolean;
 };
@@ -29,6 +28,7 @@ type EvaluationResult = {
       code_quality: number;
       uniqueness: number;
       relevance: number;
+      cp: number;
     };
   };
   agents: Record<string, { score: number; reasoning?: string; verdict?: string }>;
@@ -56,6 +56,13 @@ export default function MainEngine() {
 
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [batchProgress, setBatchProgress] = useState(0);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchResults, setBatchResults] = useState<{
+    leaderboard: Array<{name: string; score: number; recommendation: string; github_url?: string; details?: Record<string, unknown>}>;
+    eliminated: Array<{name: string; reason: string; category?: string}>;
+    flagged: Array<{name: string; flags: string[]; score?: number}>;
+  } | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<Record<string, unknown> | null>(null);
 
   // Check system status on mount
   useEffect(() => {
@@ -68,7 +75,7 @@ export default function MainEngine() {
       const status = await res.json();
       setSystemStatus(status);
     } catch {
-      setSystemStatus({ backend: false, ollama: false, kestra: false, models: [], ready: false });
+      setSystemStatus({ backend: false, ollama: false, models: [], ready: false });
     }
   };
 
@@ -165,18 +172,81 @@ export default function MainEngine() {
 
   const runBatchAnalysis = async () => {
     setBatchProgress(0);
-    const total = uploadedFiles.length;
+    setBatchTotal(uploadedFiles.length);
+    setBatchResults(null);
+    setConsoleOutput(prev => [...prev, `> Starting batch analysis of ${uploadedFiles.length} resumes...`]);
     
-    for (let i = 0; i < total; i++) {
-      const pct = Math.round(((i + 1) / total) * 100);
-      setBatchProgress(pct);
-      setConsoleOutput(prev => [...prev, `> Processing candidate #${i + 1}/${total}...`]);
-      await new Promise(r => setTimeout(r, 800));
+    try {
+      // Prepare form data with all resumes
+      const formData = new FormData();
+      formData.append('job_description', jobDescription);
+      
+      uploadedFiles.forEach((file, idx) => {
+        formData.append(`resume_${idx}`, file);
+      });
+      
+      // Start progress polling
+      const pollInterval = setInterval(async () => {
+        try {
+          const progressRes = await fetch('/api/batch/progress');
+          if (progressRes.ok) {
+            const progress = await progressRes.json();
+            if (progress.is_running) {
+              setBatchProgress(progress.current);
+              setConsoleOutput(prev => {
+                const lastLine = prev[prev.length - 1];
+                if (lastLine?.startsWith('> Processing:')) {
+                  return [...prev.slice(0, -1), `> Processing: ${progress.current}/${progress.total} (${progress.percentage}%)`];
+                }
+                return [...prev, `> Processing: ${progress.current}/${progress.total} (${progress.percentage}%)`];
+              });
+            }
+          }
+        } catch {
+          // Polling error, continue
+        }
+      }, 1000);
+      
+      // Call batch evaluation API
+      const response = await fetch('/api/evaluate/batch', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      clearInterval(pollInterval);
+      
+      if (response.ok) {
+        const result = await response.json();
+        setBatchResults(result.results);
+        setBatchProgress(result.processed);
+        
+        const { leaderboard, eliminated, flagged } = result.results;
+        setConsoleOutput(prev => [
+          ...prev,
+          `> ✅ Batch Analysis Complete!`,
+          `>    Leaderboard: ${leaderboard.length} candidates`,
+          `>    Eliminated: ${eliminated.length} candidates`,
+          `>    Flagged: ${flagged.length} candidates`,
+        ]);
+      } else {
+        const error = await response.json();
+        setConsoleOutput(prev => [...prev, `> ❌ ERROR: ${error.error || 'Batch processing failed'}`]);
+      }
+    } catch (error) {
+      setConsoleOutput(prev => [...prev, `> ❌ ERROR: Make sure backend is running (python api_server.py)`]);
     }
     
     setIsEvaluating(false);
     setIsComplete(true);
-    setConsoleOutput(prev => [...prev, "> Batch Analysis Complete."]);
+  };
+
+  const stopBatchAnalysis = async () => {
+    try {
+      await fetch('/api/evaluate/stop', { method: 'POST' });
+      setConsoleOutput(prev => [...prev, '> ⏹️ Stop requested...']);
+    } catch {
+      setConsoleOutput(prev => [...prev, '> Failed to send stop request']);
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -189,6 +259,42 @@ export default function MainEngine() {
     if (rec === 'PASS') return 'text-green-400';
     if (rec === 'WAITLIST') return 'text-yellow-400';
     return 'text-red-400';
+  };
+
+  const exportToCSV = () => {
+    if (!batchResults) return;
+
+    // Generate CSV content
+    const lines: string[] = [];
+    
+    // Header
+    lines.push("Category,Rank,Name,Score,Status,GitHub URL,Reason/Flags");
+    
+    // Leaderboard
+    batchResults.leaderboard.forEach((c, i) => {
+      lines.push(`Leaderboard,${i + 1},"${c.name}",${c.score?.toFixed(1) || 'N/A'},${c.recommendation || 'N/A'},"${c.github_url || ''}",""`);
+    });
+    
+    // Eliminated
+    batchResults.eliminated.forEach((c) => {
+      lines.push(`Eliminated,,"${c.name}",,,"","${c.reason || ''}"`);
+    });
+    
+    // Flagged
+    batchResults.flagged.forEach((c) => {
+      lines.push(`Flagged,,"${c.name}",${c.score?.toFixed(1) || 'N/A'},,"","${c.flags?.join('; ') || ''}"`);
+    });
+    
+    const csvContent = lines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `candidate_results_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -211,11 +317,19 @@ export default function MainEngine() {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center flex-1 space-y-4">
-                         <div className="text-4xl font-bold text-white">{batchProgress}%</div>
+                         <div className="text-4xl font-bold text-white">{batchProgress}/{batchTotal}</div>
                          <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
-                             <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${batchProgress}%` }}></div>
+                             <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${batchTotal > 0 ? (batchProgress / batchTotal) * 100 : 0}%` }}></div>
                          </div>
-                         <p className="text-xs text-gray-400 text-center">Processing with Ollama + Kestra...</p>
+                         <p className="text-xs text-gray-400 text-center">Processing resumes with Ollama...</p>
+                         {isEvaluating && (
+                           <button 
+                             onClick={stopBatchAnalysis}
+                             className="px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded hover:bg-red-500/30 text-sm"
+                           >
+                             ⏹ Stop Evaluation
+                           </button>
+                         )}
                     </div>
                 )}
              </div>
@@ -236,12 +350,6 @@ export default function MainEngine() {
                         {systemStatus?.ollama ? '● Online' : '○ Offline'}
                       </span>
                    </div>
-                   <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Kestra</span>
-                      <span className={systemStatus?.kestra ? 'text-green-400' : 'text-yellow-400'}>
-                        {systemStatus?.kestra ? '● Online' : '○ Optional'}
-                      </span>
-                   </div>
                 </div>
                 <button 
                   onClick={checkSystemStatus}
@@ -255,7 +363,129 @@ export default function MainEngine() {
           {/* CENTRE: Output / Result */}
           <div className="flex-1 glass-card rounded-xl border-white/10 flex flex-col overflow-hidden relative">
               
-              {isComplete && mode === 'batch' ? (
+              {isComplete && mode === 'batch' && batchResults ? (
+                  <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    {/* Header with Export */}
+                    <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                      <div>
+                        <h2 className="text-lg font-bold text-white">Batch Results</h2>
+                        <p className="text-xs text-gray-400">
+                          {batchResults.leaderboard.length} passed • {batchResults.eliminated.length} eliminated • {batchResults.flagged.length} flagged
+                        </p>
+                      </div>
+                      <button
+                        onClick={exportToCSV}
+                        className="px-4 py-2 bg-green-500/20 border border-green-500/50 text-green-400 rounded hover:bg-green-500/30 text-sm flex items-center gap-2"
+                      >
+                        📥 Export CSV
+                      </button>
+                    </div>
+
+                    {/* Leaderboard Table */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
+                        🏆 Leaderboard ({batchResults.leaderboard.length})
+                      </h3>
+                      {batchResults.leaderboard.length > 0 ? (
+                        <div className="bg-green-500/5 border border-green-500/20 rounded-lg overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead className="bg-green-500/10">
+                              <tr className="text-green-400">
+                                <th className="p-2 text-left">#</th>
+                                <th className="p-2 text-left">Name</th>
+                                <th className="p-2 text-left">Score</th>
+                                <th className="p-2 text-left">Status</th>
+                                <th className="p-2 text-left">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {batchResults.leaderboard.map((c, i) => (
+                                <tr key={i} className="border-t border-green-500/10 hover:bg-green-500/5 cursor-pointer">
+                                  <td className="p-2 text-gray-400">{i + 1}</td>
+                                  <td className="p-2 text-white">{c.name}</td>
+                                  <td className="p-2 text-green-400 font-mono">{c.score?.toFixed(1)}/10</td>
+                                  <td className="p-2">
+                                    <span className={`px-2 py-0.5 rounded text-xs ${c.recommendation === 'PASS' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                      {c.recommendation}
+                                    </span>
+                                  </td>
+                                  <td className="p-2">
+                                    <button 
+                                      onClick={() => setSelectedCandidate(c.details || null)}
+                                      className="text-blue-400 hover:underline"
+                                    >
+                                      View Details
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-xs">No candidates qualified for leaderboard</p>
+                      )}
+                    </div>
+
+                    {/* Eliminated Table */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-400 mb-2 flex items-center gap-2">
+                        🚫 Eliminated ({batchResults.eliminated.length})
+                      </h3>
+                      {batchResults.eliminated.length > 0 ? (
+                        <div className="bg-gray-500/5 border border-gray-500/20 rounded-lg overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead className="bg-gray-500/10">
+                              <tr className="text-gray-400">
+                                <th className="p-2 text-left">Name</th>
+                                <th className="p-2 text-left">Reason</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {batchResults.eliminated.map((c, i) => (
+                                <tr key={i} className="border-t border-gray-500/10">
+                                  <td className="p-2 text-gray-300">{c.name}</td>
+                                  <td className="p-2 text-gray-500">{c.reason}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-xs">No candidates eliminated</p>
+                      )}
+                    </div>
+
+                    {/* Flagged/Cheaters Table */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-2">
+                        ⚠️ Flagged ({batchResults.flagged.length})
+                      </h3>
+                      {batchResults.flagged.length > 0 ? (
+                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead className="bg-red-500/10">
+                              <tr className="text-red-400">
+                                <th className="p-2 text-left">Name</th>
+                                <th className="p-2 text-left">Flags</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {batchResults.flagged.map((c, i) => (
+                                <tr key={i} className="border-t border-red-500/10">
+                                  <td className="p-2 text-gray-300">{c.name}</td>
+                                  <td className="p-2 text-red-400">{c.flags?.join(', ') || 'Suspicious activity'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-xs">No candidates flagged</p>
+                      )}
+                    </div>
+                  </div>
+              ) : isComplete && mode === 'batch' ? (
                   <Leaderboard />
               ) : (
                 <>
@@ -327,6 +557,10 @@ export default function MainEngine() {
                                             <span className="text-gray-500">Relevance</span>
                                             <span className="text-white">{evaluationResult.final.score_breakdown.relevance}/10</span>
                                           </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-500">Problem Solving</span>
+                                            <span className="text-white">{evaluationResult.final.score_breakdown.cp || 0}/10</span>
+                                          </div>
                                         </div>
                                     </div>
                                 )}
@@ -353,7 +587,12 @@ export default function MainEngine() {
           {/* RIGHT: Input */}
           <div className="w-80 glass-card rounded-xl p-6 border-white/10 flex flex-col gap-6">
                <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Resume Upload</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Resume Upload</h3>
+                    {mode === 'batch' && (
+                      <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">BATCH MODE</span>
+                    )}
+                  </div>
                   
                   <input
                     type="file"
@@ -374,7 +613,11 @@ export default function MainEngine() {
                         <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                       </div>
                       <span className="text-xs text-gray-400">
-                          {uploadedFiles.length === 0 ? 'Drop PDF or click to upload' : `${uploadedFiles.length} file(s): ${uploadedFiles[0]?.name}`}
+                          {uploadedFiles.length === 0 
+                            ? 'Drop PDFs or click (select multiple for batch)' 
+                            : uploadedFiles.length === 1 
+                              ? `1 file: ${uploadedFiles[0]?.name}`
+                              : `${uploadedFiles.length} files selected`}
                       </span>
                   </div>
                </div>
@@ -384,20 +627,16 @@ export default function MainEngine() {
                   <textarea
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}
-                    placeholder="Paste job description here..."
+                    placeholder="Paste job description here (optional - used for relevance matching and dynamic weighting)"
                     className="w-full h-24 bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-white placeholder-gray-500 resize-none focus:outline-none focus:border-white/30"
                   />
                </div>
 
-               <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">GitHub URL (Optional)</h3>
-                  <input
-                    type="text"
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                    placeholder="https://github.com/user/repo"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-white/30"
-                  />
+               {/* Info about auto-extraction */}
+               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                 <p className="text-xs text-blue-400">
+                   <span className="font-semibold">GitHub Auto-Detection:</span> GitHub profile/repo URLs will be automatically extracted from the resume PDF and analyzed.
+                 </p>
                </div>
                
                <button 
@@ -405,7 +644,7 @@ export default function MainEngine() {
                   disabled={isEvaluating || uploadedFiles.length === 0}
                   className="mt-auto w-full py-3 bg-white text-black text-sm font-bold rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                  {isEvaluating ? 'Analyzing...' : 'Run Analysis'}
+                  {isEvaluating ? 'Analyzing...' : mode === 'batch' ? `Analyze ${uploadedFiles.length} Resumes` : 'Run Analysis'}
                </button>
           </div>
 

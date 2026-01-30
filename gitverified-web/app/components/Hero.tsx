@@ -40,17 +40,11 @@ export default function Hero() {
           </p>
           
           <div className="flex flex-col items-center gap-6">
-             {/* Partner Links */}
+             {/* Powered By */}
              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                <span>Powered by</span>
-               <Link href="https://kestra.io" target="_blank" className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5 text-white/90 font-medium hover:bg-white/10 transition-colors">
-                  ⚡ Kestra
-               </Link>
-                <Link href="https://oumi.ai" target="_blank" className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5 text-white/90 font-medium hover:bg-white/10 transition-colors">
-                  🧠 Oumi
-               </Link>
-                <Link href="https://coderabbit.ai" target="_blank" className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5 text-white/90 font-medium hover:bg-white/10 transition-colors">
-                  🐰 CodeRabbit
+               <Link href="https://ollama.ai" target="_blank" className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5 text-white/90 font-medium hover:bg-white/10 transition-colors">
+                  🦙 Ollama
                </Link>
              </div>
 
