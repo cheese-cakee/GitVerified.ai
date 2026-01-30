@@ -5,8 +5,9 @@ export interface Candidate {
     truth: number;
     passion: number;
     code: number;
-    status: "INTERVIEW" | "REJECT" | "WAITLIST";
+    status: string;
     flag: string;
+    date?: string;
 }
 
 export interface EvaluationResult {
@@ -21,6 +22,7 @@ export interface EvaluationResult {
         code_quality?: { score: number; verdict?: string; flags?: string[] };
         uniqueness?: { score: number; reasoning?: string };
         relevance?: { score: number; reasoning?: string };
+        cp?: { score: number; reasoning?: string; flags?: string[] };
     };
     final: {
         overall_score: number;
@@ -48,7 +50,7 @@ export interface SystemStatus {
  */
 export async function getSystemStatus(): Promise<SystemStatus> {
     try {
-        const res = await fetch('/api/status');
+        const res = await fetch('http://localhost:3001/api/status');
         if (res.ok) {
             return await res.json();
         }
@@ -64,16 +66,18 @@ export async function getSystemStatus(): Promise<SystemStatus> {
 export async function evaluateCandidate(
     resumeFile: File,
     jobDescription: string,
-    githubUrl?: string
+    githubUrl?: string,
+    leetcodeUsername?: string,
+    codeforcesUsername?: string
 ): Promise<EvaluationResult> {
     const formData = new FormData();
     formData.append('resume', resumeFile);
     formData.append('job_description', jobDescription);
-    if (githubUrl) {
-        formData.append('github_url', githubUrl);
-    }
+    if (githubUrl) formData.append('github_url', githubUrl);
+    if (leetcodeUsername) formData.append('leetcode_username', leetcodeUsername);
+    if (codeforcesUsername) formData.append('codeforces_username', codeforcesUsername);
 
-    const res = await fetch('/api/evaluate', {
+    const res = await fetch('http://localhost:3001/api/evaluate', {
         method: 'POST',
         body: formData,
     });
@@ -87,16 +91,31 @@ export async function evaluateCandidate(
 }
 
 /**
- * Get leaderboard data (for batch mode)
+ * Get leaderboard data (from Python API)
  */
 export async function getLeaderboardData(): Promise<Candidate[]> {
-    // For batch processing, this would fetch from stored results
-    // Currently returns sample data for UI demonstration
-    return [
-        { id: "c1", name: "Alex Builder", p_score: 98, truth: 100, passion: 95, code: 99, status: "INTERVIEW", flag: "Verified Open Source" },
-        { id: "c2", name: "Sarah Systems", p_score: 94, truth: 100, passion: 98, code: 85, status: "INTERVIEW", flag: "Game Engine Dev" },
-        { id: "c3", name: "Jordan Script", p_score: 72, truth: 80, passion: 60, code: 75, status: "INTERVIEW", flag: "Standard" },
-        { id: "c4", name: "Pending Paul", p_score: 55, truth: 60, passion: 50, code: 55, status: "WAITLIST", flag: "Needs Review" },
-        { id: "c5", name: "Keyword Karl", p_score: 35, truth: 40, passion: 20, code: 45, status: "REJECT", flag: "Low Proof-of-Work" },
-    ];
+    try {
+        const res = await fetch('http://localhost:3001/api/leaderboard', {
+            next: { revalidate: 10 } // Cache for 10 seconds
+        });
+        
+        if (!res.ok) return [];
+        
+        const data = await res.json();
+        
+        return data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            p_score: Math.round((item.overall_score || 0) * 10),
+            truth: Math.round((item.details?.integrity || 0) * 10),
+            passion: Math.round((item.details?.relevance || 0) * 10), // Mapping relevance -> passion
+            code: Math.round((item.details?.quality || 0) * 10),
+            status: item.status,
+            flag: item.skills ? item.skills[0] : "Candidate",
+            date: item.date
+        }));
+    } catch (error) {
+        console.error("Failed to fetch leaderboard:", error);
+        return [];
+    }
 }
