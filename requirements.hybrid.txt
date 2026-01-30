@@ -12,7 +12,7 @@ pymupdf>=1.23.0         # PDF text extraction
 
 # Local LLM and quantization
 # Install Oumi for quantized models (optional)
-# pip install oumi>=0.8.0 bitsandbytes accelerate
+# pip install bitsandbytes accelerate
 
 # Or use Ollama for lightweight models
 # Download from https://ollama.ai/download
