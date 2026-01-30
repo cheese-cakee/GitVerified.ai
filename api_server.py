@@ -1,6 +1,6 @@
 """
 CandidateAI Local API Server
-Connects Frontend to Agents + Ollama
+Simple HTTP API for resume evaluation with Ollama
 100% Local - No external API tokens required
 """
 
@@ -8,12 +8,31 @@ import json
 import os
 import sys
 import tempfile
+import re
+import time
+import glob
+import threading
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
-import cgi
+import urllib.request
 
 # Add agents to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'agents'))
+
+# Global state for batch processing
+batch_state = {
+    'is_running': False,
+    'should_stop': False,
+    'current_index': 0,
+    'total_count': 0,
+    'results': {
+        'leaderboard': [],
+        'eliminated': [],
+        'flagged': []
+    }
+}
+batch_lock = threading.Lock()
 
 class CandidateAIHandler(BaseHTTPRequestHandler):
     """Local API handler for CandidateAI"""
@@ -31,7 +50,7 @@ class CandidateAIHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         
-        if path == '/':
+        if path == '/' or path == '':
             self.send_response(200)
             self.send_header('Content-Type', 'text/html')
             self.send_cors_headers()
@@ -45,26 +64,27 @@ body { font-family: system-ui; padding: 40px; background: #0a0a0a; color: #fff; 
 h1 { color: #10b981; }
 .endpoint { background: #1a1a1a; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; }
 .method { color: #3b82f6; font-weight: bold; }
-code { background: #333; padding: 2px 6px; border-radius: 4px; }
+.status { color: #10b981; }
 </style>
 </head>
 <body>
 <h1>CandidateAI API Server</h1>
+<p class="status">Server is running!</p>
 <p>Local AI-powered candidate evaluation. No API tokens required.</p>
 
 <div class="endpoint">
 <h3><span class="method">POST</span> /api/evaluate</h3>
-<p>Evaluate a candidate resume. Accepts multipart form data with:</p>
-<ul>
-<li><code>resume</code> - PDF file</li>
-<li><code>job_description</code> - Job description text</li>
-<li><code>github_url</code> - GitHub repository URL (optional)</li>
-</ul>
+<p>Evaluate a candidate resume with AI</p>
 </div>
 
 <div class="endpoint">
 <h3><span class="method">GET</span> /api/status</h3>
 <p>Check system status (Ollama, backend health)</p>
+</div>
+
+<div class="endpoint">
+<h3><span class="method">GET</span> /api/leaderboard</h3>
+<p>Get candidate leaderboard</p>
 </div>
 
 <p style="color: #666; margin-top: 30px;">Frontend: <a href="http://localhost:3000" style="color: #3b82f6;">http://localhost:3000</a></p>
@@ -82,6 +102,14 @@ code { background: #333; padding: 2px 6px; border-radius: 4px; }
             status = self.check_system_status()
             self.wfile.write(json.dumps(status).encode())
             return
+
+        elif path == '/api/leaderboard':
+            self.handle_leaderboard()
+            return
+        
+        elif path == '/api/batch/progress':
+            self.handle_batch_progress()
+            return
         
         self.send_response(404)
         self.end_headers()
@@ -93,52 +121,403 @@ code { background: #333; padding: 2px 6px; border-radius: 4px; }
             self.handle_evaluate()
             return
         
+        if path == '/api/evaluate/batch':
+            self.handle_batch_evaluate()
+            return
+        
+        if path == '/api/evaluate/stop':
+            self.handle_stop_evaluation()
+            return
+        
         self.send_response(404)
         self.send_cors_headers()
         self.end_headers()
     
+    def parse_multipart(self, content_type, body):
+        """Simple multipart form parser"""
+        result = {'files': {}, 'fields': {}}
+        
+        # Extract boundary
+        boundary_match = re.search(r'boundary=(.+?)(?:;|$)', content_type)
+        if not boundary_match:
+            return result
+        
+        boundary = boundary_match.group(1).strip()
+        if boundary.startswith('"') and boundary.endswith('"'):
+            boundary = boundary[1:-1]
+        
+        # Split by boundary
+        parts = body.split(('--' + boundary).encode())
+        
+        for part in parts:
+            if not part or part == b'--' or part == b'--\r\n':
+                continue
+            
+            # Split headers from content
+            try:
+                if b'\r\n\r\n' in part:
+                    header_section, content = part.split(b'\r\n\r\n', 1)
+                elif b'\n\n' in part:
+                    header_section, content = part.split(b'\n\n', 1)
+                else:
+                    continue
+                
+                header_text = header_section.decode('utf-8', errors='ignore')
+                
+                # Extract field name
+                name_match = re.search(r'name="([^"]+)"', header_text)
+                if not name_match:
+                    continue
+                
+                field_name = name_match.group(1)
+                
+                # Check if it's a file
+                filename_match = re.search(r'filename="([^"]+)"', header_text)
+                
+                # Clean content (remove trailing boundary markers)
+                content = content.rstrip(b'\r\n').rstrip(b'--').rstrip(b'\r\n')
+                
+                if filename_match:
+                    result['files'][field_name] = {
+                        'filename': filename_match.group(1),
+                        'content': content
+                    }
+                else:
+                    result['fields'][field_name] = content.decode('utf-8', errors='ignore').strip()
+                    
+            except Exception as e:
+                print(f"Error parsing part: {e}")
+                continue
+        
+        return result
+    
+    def handle_leaderboard(self):
+        """Get leaderboard data from stored evaluations"""
+        try:
+            evals_dir = Path("data/evaluations")
+            candidates = []
+            
+            if evals_dir.exists():
+                for eval_file in evals_dir.glob("*.json"):
+                    try:
+                        with open(eval_file, "r") as f:
+                            data = json.load(f)
+                            
+                        # Extract info
+                        final = data.get("final", {})
+                        candidate = data.get("candidate", {})
+                        agents = data.get("agents", {})
+                        
+                        # Determine name
+                        name = "Unknown Candidate"
+                        resume_path = candidate.get("resume_path", "")
+                        if resume_path and "tmp" not in resume_path:
+                            name = Path(resume_path).stem.replace("_", " ").title()
+                        elif candidate.get("github_url"):
+                            name = candidate.get("github_url").split("/")[-1]
+                        elif candidate.get("leetcode_username"):
+                            name = candidate.get("leetcode_username")
+                            
+                        # Add to list
+                        candidates.append({
+                            "id": eval_file.stem,
+                            "name": name,
+                            "role": "Software Engineer", # Inferred or default
+                            "overall_score": final.get("overall_score", 0),
+                            "status": final.get("recommendation", "REVIEW"),
+                            "date": time.strftime('%Y-%m-%d', time.localtime(eval_file.stat().st_mtime)),
+                            "skills": ["Python", "React", "Node.js"], # Placeholder or extracted
+                            "details": {
+                                "integrity": final.get("score_breakdown", {}).get("integrity", 0),
+                                "quality": final.get("score_breakdown", {}).get("code_quality", 0),
+                                "cp": agents.get("cp", {}).get("score", 0)
+                            }
+                        })
+                    except Exception as e:
+                        print(f"Error reading eval {eval_file}: {e}")
+            
+            # Sort by score desc
+            candidates.sort(key=lambda x: x["overall_score"], reverse=True)
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(candidates).encode())
+            
+        except Exception as e:
+            print(f"Leaderboard error: {e}")
+            self.send_response(500)
+            self.end_headers()
+    
+    def handle_batch_progress(self):
+        """Get current batch processing progress"""
+        global batch_state
+        
+        with batch_lock:
+            progress = {
+                'is_running': batch_state['is_running'],
+                'current': batch_state['current_index'],
+                'total': batch_state['total_count'],
+                'percentage': round(batch_state['current_index'] / max(1, batch_state['total_count']) * 100, 1),
+                'results': {
+                    'leaderboard_count': len(batch_state['results']['leaderboard']),
+                    'eliminated_count': len(batch_state['results']['eliminated']),
+                    'flagged_count': len(batch_state['results']['flagged'])
+                }
+            }
+        
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_cors_headers()
+        self.end_headers()
+        self.wfile.write(json.dumps(progress).encode())
+    
+    def handle_stop_evaluation(self):
+        """Stop the current batch evaluation"""
+        global batch_state
+        
+        with batch_lock:
+            if batch_state['is_running']:
+                batch_state['should_stop'] = True
+                message = "Stop requested"
+            else:
+                message = "No batch running"
+        
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_cors_headers()
+        self.end_headers()
+        self.wfile.write(json.dumps({'message': message}).encode())
+    
+    def handle_batch_evaluate(self):
+        """Handle batch resume evaluation"""
+        global batch_state
+        
+        try:
+            content_type = self.headers.get('Content-Type', '')
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            
+            job_description = ''
+            resumes = []
+            
+            if 'multipart/form-data' in content_type:
+                parsed = self.parse_multipart(content_type, body)
+                job_description = parsed['fields'].get('job_description', '')
+                
+                # Collect all resume files
+                for field_name, file_data in parsed['files'].items():
+                    if 'resume' in field_name or field_name.endswith('.pdf'):
+                        resumes.append({
+                            'filename': file_data['filename'],
+                            'content': file_data['content']
+                        })
+            
+            if not resumes:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'No resumes provided'}).encode())
+                return
+            
+            # Initialize batch state
+            with batch_lock:
+                batch_state['is_running'] = True
+                batch_state['should_stop'] = False
+                batch_state['current_index'] = 0
+                batch_state['total_count'] = len(resumes)
+                batch_state['results'] = {
+                    'leaderboard': [],
+                    'eliminated': [],
+                    'flagged': []
+                }
+            
+            print(f"\n{'='*50}")
+            print(f"Starting BATCH evaluation: {len(resumes)} resumes")
+            print(f"{'='*50}\n")
+            
+            # Save resumes and process
+            os.makedirs("data/uploads/batch", exist_ok=True)
+            
+            for i, resume_data in enumerate(resumes):
+                # Check for stop request
+                with batch_lock:
+                    if batch_state['should_stop']:
+                        print("Batch stopped by user")
+                        break
+                    batch_state['current_index'] = i + 1
+                
+                filename = f"batch_{int(time.time())}_{i}_{resume_data['filename']}"
+                resume_path = os.path.join("data/uploads/batch", filename)
+                
+                try:
+                    with open(resume_path, "wb") as f:
+                        f.write(resume_data['content'])
+                    
+                    print(f"\n[{i+1}/{len(resumes)}] Processing: {resume_data['filename']}")
+                    
+                    # Extract GitHub URL from resume
+                    resume_text = self.extract_resume_text(resume_path)
+                    github_url = self.extract_github_from_resume(resume_text) or ''
+                    
+                    # Categorize based on GitHub presence
+                    if not github_url:
+                        # No GitHub = Eliminated
+                        with batch_lock:
+                            batch_state['results']['eliminated'].append({
+                                'name': Path(resume_data['filename']).stem.replace('_', ' ').title(),
+                                'filename': resume_data['filename'],
+                                'reason': 'No GitHub URL found',
+                                'category': 'NO_GITHUB'
+                            })
+                        print(f"  -> ELIMINATED: No GitHub URL")
+                        continue
+                    
+                    # Run full evaluation
+                    result = self.run_evaluation(resume_path, job_description, github_url, None, None)
+                    
+                    # Determine category based on results
+                    final = result.get('final', {})
+                    agents = result.get('agents', {})
+                    integrity = agents.get('integrity', {})
+                    
+                    candidate_data = {
+                        'name': Path(resume_data['filename']).stem.replace('_', ' ').title(),
+                        'filename': resume_data['filename'],
+                        'score': final.get('overall_score', 0),
+                        'recommendation': final.get('recommendation', 'REVIEW'),
+                        'github_url': github_url,
+                        'details': result
+                    }
+                    
+                    # Check for cheater flags
+                    cheater_flags = integrity.get('flags', [])
+                    has_white_text = any('white' in str(f).lower() or 'hidden' in str(f).lower() for f in cheater_flags)
+                    has_keyword_stuffing = any('stuff' in str(f).lower() or 'spam' in str(f).lower() for f in cheater_flags)
+                    
+                    with batch_lock:
+                        if has_white_text or has_keyword_stuffing:
+                            candidate_data['flags'] = cheater_flags
+                            batch_state['results']['flagged'].append(candidate_data)
+                            print(f"  -> FLAGGED: {cheater_flags}")
+                        elif final.get('recommendation') == 'REJECT':
+                            candidate_data['reason'] = final.get('reasoning', 'Score too low')
+                            batch_state['results']['eliminated'].append(candidate_data)
+                            print(f"  -> ELIMINATED: {final.get('reasoning', 'Low score')[:50]}")
+                        else:
+                            batch_state['results']['leaderboard'].append(candidate_data)
+                            print(f"  -> LEADERBOARD: Score {final.get('overall_score', 0)}")
+                    
+                except Exception as e:
+                    print(f"  -> ERROR: {e}")
+                    with batch_lock:
+                        batch_state['results']['eliminated'].append({
+                            'name': Path(resume_data['filename']).stem.replace('_', ' ').title(),
+                            'filename': resume_data['filename'],
+                            'reason': f'Processing error: {str(e)}',
+                            'category': 'ERROR'
+                        })
+            
+            # Sort leaderboard by score
+            with batch_lock:
+                batch_state['results']['leaderboard'].sort(
+                    key=lambda x: x.get('score', 0), 
+                    reverse=True
+                )
+                batch_state['is_running'] = False
+                final_results = batch_state['results'].copy()
+            
+            print(f"\n{'='*50}")
+            print(f"Batch complete:")
+            print(f"  Leaderboard: {len(final_results['leaderboard'])}")
+            print(f"  Eliminated: {len(final_results['eliminated'])}")
+            print(f"  Flagged: {len(final_results['flagged'])}")
+            print(f"{'='*50}\n")
+            
+            # Send response
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'complete',
+                'processed': batch_state['current_index'],
+                'total': len(resumes),
+                'results': final_results
+            }).encode())
+            
+        except Exception as e:
+            print(f"Batch evaluation error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            with batch_lock:
+                batch_state['is_running'] = False
+            
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(e)}).encode())
+    
     def handle_evaluate(self):
         """Handle resume evaluation request"""
         try:
-            # Parse multipart form data
             content_type = self.headers.get('Content-Type', '')
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            
+            resume_path = None
+            job_description = ''
+            github_url = ''
+            leetcode_username = ''
+            codeforces_username = ''
             
             if 'multipart/form-data' in content_type:
-                form = cgi.FieldStorage(
-                    fp=self.rfile,
-                    headers=self.headers,
-                    environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': content_type}
-                )
+                # Parse multipart form data
+                parsed = self.parse_multipart(content_type, body)
                 
-                # Extract fields
-                resume_file = form['resume'] if 'resume' in form else None
-                job_description = form.getvalue('job_description', '')
-                github_url = form.getvalue('github_url', '')
+                job_description = parsed['fields'].get('job_description', '')
+                github_url = parsed['fields'].get('github_url', '')
+                leetcode_username = parsed['fields'].get('leetcode_username', '')
+                codeforces_username = parsed['fields'].get('codeforces_username', '')
                 
-                # Save resume to temp file
-                resume_path = None
-                if resume_file and resume_file.file:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-                        tmp.write(resume_file.file.read())
-                        resume_path = tmp.name
-            else:
-                # JSON body fallback
-                content_length = int(self.headers.get('Content-Length', 0))
-                body = self.rfile.read(content_length)
+                # Save resume file
+                if 'resume' in parsed['files']:
+                    file_data = parsed['files']['resume']
+                    # Create data dir if not exists
+                    os.makedirs("data/uploads", exist_ok=True)
+                    
+                    filename = f"resume_{int(time.time())}.pdf"
+                    resume_path = os.path.join("data/uploads", filename)
+                    
+                    with open(resume_path, "wb") as f:
+                        f.write(file_data['content'])
+                    print(f"Saved resume to: {resume_path}")
+                    
+            elif 'application/json' in content_type:
                 data = json.loads(body) if body else {}
                 job_description = data.get('job_description', '')
                 github_url = data.get('github_url', '')
+                leetcode_username = data.get('leetcode_username', '')
+                codeforces_username = data.get('codeforces_username', '')
                 resume_path = data.get('resume_path', '')
             
             # Run evaluation
-            result = self.run_evaluation(resume_path, job_description, github_url)
+            result = self.run_evaluation(resume_path, job_description, github_url, leetcode_username, codeforces_username)
             
-            # Clean up temp file
-            if resume_path and os.path.exists(resume_path) and '/tmp' in resume_path:
-                try:
-                    os.unlink(resume_path)
-                except:
-                    pass
+            # Save evaluation result
+            try:
+                os.makedirs("data/evaluations", exist_ok=True)
+                eval_id = f"eval_{int(time.time())}"
+                save_path = f"data/evaluations/{eval_id}.json"
+                with open(save_path, "w") as f:
+                    json.dump(result, f, indent=2)
+                print(f"Saved evaluation to {save_path}")
+            except Exception as e:
+                print(f"Failed to save evaluation: {e}")
             
             # Send response
             self.send_response(200)
@@ -149,234 +528,346 @@ code { background: #333; padding: 2px 6px; border-radius: 4px; }
             
         except Exception as e:
             print(f"Evaluation error: {e}")
+            import traceback
+            traceback.print_exc()
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.send_cors_headers()
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(e)}).encode())
     
-    def run_evaluation(self, resume_path, job_description, github_url):
+    def run_evaluation(self, resume_path, job_description, github_url, leetcode_username=None, codeforces_username=None):
         """Run candidate evaluation using local agents + Ollama"""
         print(f"\n{'='*50}")
-        print("🚀 Starting CandidateAI Evaluation")
-        print(f"📄 Resume: {resume_path}")
-        print(f"💼 Job: {job_description[:50]}..." if job_description else "No job description")
-        print(f"🔗 GitHub: {github_url}" if github_url else "No GitHub")
+        print("Starting CandidateAI Evaluation")
+        print(f"Resume: {resume_path}")
+        print(f"Job: {job_description[:50]}..." if job_description else "No job description")
         print(f"{'='*50}\n")
         
         results = {
+            'status': 'complete',
             'candidate': {
-                'resume_path': resume_path,
+                'resume_path': resume_path or 'uploaded',
                 'job_description': job_description,
-                'github_url': github_url
+                'github_url': github_url,
+                'leetcode_username': leetcode_username,
+                'codeforces_username': codeforces_username
             },
             'agents': {},
             'final': {}
         }
         
-        # Import hybrid model client
+        # Try to use hybrid model client
+        client = None
+        use_ai = False
         try:
-            from hybrid_model import get_hybrid_client, get_heuristic_response
+            from hybrid_model import get_hybrid_client
             client = get_hybrid_client()
             use_ai = client.is_available()
-            print(f"🤖 Ollama available: {use_ai}")
+            print(f"Ollama available: {use_ai}")
         except Exception as e:
-            print(f"⚠️ Could not load hybrid model: {e}")
-            use_ai = False
-            client = None
+            print(f"Could not load hybrid model: {e}")
         
         # Extract resume text
         resume_text = self.extract_resume_text(resume_path)
         
+        # If no GitHub URL provided, try to extract from resume
+        if not github_url:
+            extracted_url = self.extract_github_from_resume(resume_text)
+            if extracted_url:
+                github_url = extracted_url
+                print(f"Extracted GitHub URL from resume: {github_url}")
+        
+        # Extract LeetCode/Codeforces usernames from resume links
+        if not leetcode_username:
+            leetcode_username = self.extract_leetcode_from_resume(resume_text)
+            if leetcode_username:
+                print(f"Extracted LeetCode username: {leetcode_username}")
+        
+        if not codeforces_username:
+            codeforces_username = self.extract_codeforces_from_resume(resume_text)
+            if codeforces_username:
+                print(f"Extracted Codeforces username: {codeforces_username}")
+        
+        # Fetch GitHub data once, share across agents
+        github_analysis = None
+        if github_url:
+            try:
+                from github_fetcher import analyze_github_repo
+                analysis = analyze_github_repo(github_url)
+                if not analysis.error:
+                    github_analysis = {
+                        'metadata': analysis.metadata.__dict__ if analysis.metadata else {},
+                        'content': analysis.content.__dict__ if analysis.content else {}
+                    }
+                    print(f"Fetched GitHub data: {analysis.metadata.full_name if analysis.metadata else 'N/A'}")
+                else:
+                    print(f"GitHub fetch warning: {analysis.error}")
+            except Exception as e:
+                print(f"GitHub fetch failed: {e}")
+        
         # Run agents
-        print("\n🔍 Running Integrity Scan...")
-        results['agents']['integrity'] = self.run_integrity_agent(resume_text, client, use_ai)
-        print(f"   ✅ Score: {results['agents']['integrity'].get('score', 'N/A')}/10")
+        print("\nRunning Integrity Scan...")
+        results['agents']['integrity'] = self.run_integrity_agent(resume_text, github_analysis, client, use_ai)
         
-        print("\n💻 Running Code Quality Analysis...")
-        results['agents']['code_quality'] = self.run_code_quality_agent(github_url, client, use_ai)
-        print(f"   ✅ Score: {results['agents']['code_quality'].get('score', 'N/A')}/100")
+        print("Running Code Quality Analysis...")
+        results['agents']['code_quality'] = self.run_code_quality_agent(github_url, github_analysis, client, use_ai)
         
-        print("\n🎨 Running Uniqueness Analysis...")
-        results['agents']['uniqueness'] = self.run_uniqueness_agent(github_url, client, use_ai)
-        print(f"   ✅ Score: {results['agents']['uniqueness'].get('score', 'N/A')}/10")
+        print("Running Uniqueness Analysis...")
+        results['agents']['uniqueness'] = self.run_uniqueness_agent(github_url, github_analysis, client, use_ai)
         
-        print("\n🎯 Running Relevance Analysis...")
+        print("Running Relevance Analysis...")
         results['agents']['relevance'] = self.run_relevance_agent(resume_text, job_description, client, use_ai)
-        print(f"   ✅ Score: {results['agents']['relevance'].get('score', 'N/A')}/10")
+        
+        print("Running Competitive Programming Analysis...")
+        results['agents']['cp'] = self.run_cp_agent(leetcode_username, codeforces_username, resume_text, client, use_ai)
         
         # Synthesize final result
-        print("\n🧠 Synthesizing final result...")
-        results['final'] = self.synthesize_results(results['agents'])
+        print("\nSynthesizing results...")
+        results['final'] = self.synthesize_results(results['agents'], job_description)
         
-        print(f"\n{'='*50}")
-        print(f"🏆 Final Score: {results['final']['overall_score']}/10")
-        print(f"📋 Recommendation: {results['final']['recommendation']}")
-        print(f"{'='*50}\n")
+        print(f"\nFinal Score: {results['final']['overall_score']}/10")
+        print(f"Recommendation: {results['final']['recommendation']}\n")
         
         return results
     
     def extract_resume_text(self, resume_path):
-        """Extract text from PDF resume"""
-        if not resume_path or not os.path.exists(resume_path):
-            return "No resume provided"
-        
+        """Extract text AND hyperlinks from PDF resume"""
         try:
-            import fitz  # PyMuPDF
+            import fitz
             doc = fitz.open(resume_path)
             text = ""
+            links = []
+            
             for page in doc:
                 text += page.get_text()
+                
+                # Extract hyperlinks from the page
+                for link in page.get_links():
+                    if link.get("uri"):
+                        links.append(link["uri"])
+            
             doc.close()
-            return text[:3000]  # Limit length
+            
+            # Append found links to the text so they can be extracted
+            if links:
+                text += "\n\n--- EXTRACTED LINKS ---\n"
+                text += "\n".join(links)
+                print(f"Extracted {len(links)} hyperlinks from PDF")
+            
+            return text[:8000]  # Increased limit
         except ImportError:
-            print("⚠️ PyMuPDF not installed. Using placeholder text.")
+            print("PyMuPDF not installed - using placeholder")
             return "Resume text extraction requires: pip install pymupdf"
         except Exception as e:
-            print(f"⚠️ PDF extraction failed: {e}")
+            print(f"PDF extraction failed: {e}")
             return f"Could not extract text: {e}"
     
-    def run_integrity_agent(self, resume_text, client, use_ai):
-        """Run resume integrity analysis"""
-        if use_ai and client:
-            prompt = f"""Analyze this resume for authenticity. Look for:
-1. Hidden text or white text on white background
-2. Keyword stuffing
-3. Inconsistencies in dates/experience
-4. Suspicious formatting
-
-Resume text:
-{resume_text[:1500]}
-
-Respond with JSON: {{"score": 0-10, "reasoning": "brief explanation", "flags": ["list of issues"]}}"""
-            
-            try:
-                response = client.chat(prompt, max_tokens=300)
-                result = json.loads(response.get('response', '{}'))
-                result['agent'] = 'integrity'
-                result['backend'] = response.get('backend', 'unknown')
-                return result
-            except:
-                pass
+    def extract_github_from_resume(self, resume_text):
+        """Extract GitHub URL (profile or repo) from resume text"""
+        if not resume_text:
+            return None
         
-        # Heuristic fallback
-        return {
-            'agent': 'integrity',
-            'score': 7.0,
-            'reasoning': 'Resume appears authentic (heuristic analysis)',
-            'flags': [],
-            'backend': 'heuristics'
-        }
+        # Try to match full repo URLs first (most specific)
+        repo_pattern = r'https?://github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+'
+        match = re.search(repo_pattern, resume_text)
+        if match:
+            return match.group(0)
+        
+        # Try repo without https
+        repo_pattern = r'github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+'
+        match = re.search(repo_pattern, resume_text)
+        if match:
+            return 'https://' + match.group(0)
+        
+        # Match profile URLs (github.com/username)
+        profile_pattern = r'https?://github\.com/([a-zA-Z0-9_-]+)(?:\s|$|[,;)])'
+        match = re.search(profile_pattern, resume_text)
+        if match:
+            return f'https://github.com/{match.group(1)}'
+        
+        # Profile without https
+        profile_pattern = r'github\.com/([a-zA-Z0-9_-]+)(?:\s|$|[,;)])'
+        match = re.search(profile_pattern, resume_text)
+        if match:
+            return f'https://github.com/{match.group(1)}'
+        
+        return None
     
-    def run_code_quality_agent(self, github_url, client, use_ai):
-        """Run code quality analysis"""
-        if use_ai and client and github_url:
-            prompt = f"""Analyze code quality for this GitHub repository: {github_url}
-
-Consider:
-1. Security best practices
-2. Code organization
-3. Documentation
-4. Test coverage indicators
-
-Respond with JSON: {{"score": 0-100, "verdict": "Good/Acceptable/Poor", "flags": ["issues found"]}}"""
-            
-            try:
-                response = client.chat(prompt, max_tokens=300)
-                result = json.loads(response.get('response', '{}'))
-                result['agent'] = 'code_quality'
-                result['backend'] = response.get('backend', 'unknown')
-                return result
-            except:
-                pass
+    def extract_leetcode_from_resume(self, resume_text):
+        """Extract LeetCode username from resume text/links"""
+        if not resume_text:
+            return None
         
-        # Heuristic fallback
-        return {
-            'agent': 'code_quality',
-            'score': 72,
-            'verdict': 'Acceptable',
-            'flags': ['Heuristic analysis - provide GitHub URL for deeper analysis'],
-            'backend': 'heuristics'
-        }
+        # Match leetcode.com/u/username or leetcode.com/username patterns
+        patterns = [
+            r'leetcode\.com/u/([a-zA-Z0-9_-]+)',
+            r'leetcode\.com/([a-zA-Z0-9_-]+)(?:/|$|\s)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, resume_text, re.IGNORECASE)
+            if match:
+                username = match.group(1)
+                # Filter out common non-username paths
+                if username.lower() not in ['problems', 'contest', 'discuss', 'explore', 'submissions']:
+                    return username
+        
+        return None
     
-    def run_uniqueness_agent(self, github_url, client, use_ai):
-        """Run project uniqueness analysis"""
-        if use_ai and client:
-            prompt = f"""Analyze project uniqueness for: {github_url if github_url else 'No repository provided'}
-
-Determine if this appears to be:
-1. Original work
-2. Tutorial clone (Todo app, Weather app, etc.)
-3. Forked/copied project
-
-Respond with JSON: {{"score": 0-10, "reasoning": "explanation"}}
-Score 8-10 = highly original, 4-7 = some originality, 0-3 = tutorial clone"""
-            
-            try:
-                response = client.chat(prompt, max_tokens=300)
-                result = json.loads(response.get('response', '{}'))
-                result['agent'] = 'uniqueness'
-                result['backend'] = response.get('backend', 'unknown')
-                return result
-            except:
-                pass
+    def extract_codeforces_from_resume(self, resume_text):
+        """Extract Codeforces username from resume text/links"""
+        if not resume_text:
+            return None
         
-        return {
-            'agent': 'uniqueness',
-            'score': 6.5,
-            'reasoning': 'Moderate uniqueness (heuristic analysis)',
-            'backend': 'heuristics'
-        }
+        # Match codeforces.com/profile/username pattern
+        patterns = [
+            r'codeforces\.com/profile/([a-zA-Z0-9_-]+)',
+            r'codeforces\.com/([a-zA-Z0-9_-]+)(?:/|$|\s)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, resume_text, re.IGNORECASE)
+            if match:
+                username = match.group(1)
+                # Filter out common non-username paths
+                if username.lower() not in ['contests', 'problemset', 'ratings', 'blog', 'api']:
+                    return username
+        
+        return None
+    
+    def run_integrity_agent(self, resume_text, github_analysis, client, use_ai):
+        """Run resume integrity and cheater detection analysis"""
+        try:
+            from integrity import scan_resume_integrity
+            
+            result = scan_resume_integrity(
+                resume_text=resume_text,
+                github_analysis=github_analysis
+            )
+            return result
+            
+        except Exception as e:
+            print(f"Integrity agent failed: {e}")
+            # Fallback to basic analysis
+            return {
+                'agent': 'integrity', 
+                'score': 7.0, 
+                'reasoning': 'Resume appears authentic (fallback)', 
+                'flags': [], 
+                'backend': 'fallback'
+            }
+    
+    def run_code_quality_agent(self, github_url, github_analysis, client, use_ai):
+        """Run code quality analysis using actual GitHub code"""
+        try:
+            from code_quality import scan_code_quality
+            
+            if github_analysis:
+                return scan_code_quality(github_analysis=github_analysis)
+            elif github_url:
+                return scan_code_quality(github_url=github_url)
+            else:
+                return {'agent': 'code_quality', 'score': 0, 'error': 'No GitHub URL provided', 'backend': 'none'}
+        except Exception as e:
+            print(f"Code quality agent failed: {e}")
+            return {'agent': 'code_quality', 'score': 50, 'verdict': 'Unknown', 'flags': [], 'backend': 'fallback', 'error': str(e)}
+    
+    def run_uniqueness_agent(self, github_url, github_analysis, client, use_ai):
+        """Run project uniqueness analysis using actual GitHub data"""
+        try:
+            from uniqueness import analyze_project_uniqueness
+            
+            if github_analysis:
+                return analyze_project_uniqueness(github_analysis=github_analysis)
+            elif github_url:
+                return analyze_project_uniqueness(github_url=github_url)
+            else:
+                return {'agent': 'uniqueness', 'score': 0, 'reasoning': 'No GitHub URL provided', 'backend': 'none'}
+        except Exception as e:
+            print(f"Uniqueness agent failed: {e}")
+            return {'agent': 'uniqueness', 'score': 5.0, 'reasoning': f'Analysis failed: {e}', 'backend': 'fallback'}
     
     def run_relevance_agent(self, resume_text, job_description, client, use_ai):
         """Run job relevance analysis"""
         if use_ai and client and job_description:
-            prompt = f"""Analyze how well this candidate matches the job requirements.
-
-Job Description:
-{job_description[:800]}
-
-Resume Summary:
-{resume_text[:800]}
-
-Respond with JSON: {{"score": 0-10, "reasoning": "explanation of match"}}"""
+            prompt = f"""Does this candidate match the job?
+Job: {job_description[:400]}
+Resume: {resume_text[:400]}
+Respond with ONLY valid JSON: {{"score": 7.0, "reasoning": "match explanation"}}"""
             
             try:
-                response = client.chat(prompt, max_tokens=300)
-                result = json.loads(response.get('response', '{}'))
-                result['agent'] = 'relevance'
-                result['backend'] = response.get('backend', 'unknown')
-                return result
-            except:
-                pass
+                response = client.chat(prompt, max_tokens=200)
+                text = response.get('response', '{}')
+                json_match = re.search(r'\{[^}]+\}', text)
+                if json_match:
+                    result = json.loads(json_match.group())
+                    result['agent'] = 'relevance'
+                    return result
+            except Exception as e:
+                print(f"Relevance AI failed: {e}")
         
-        return {
-            'agent': 'relevance',
-            'score': 7.0,
-            'reasoning': 'Candidate appears relevant (heuristic analysis)',
-            'backend': 'heuristics'
-        }
+        return {'agent': 'relevance', 'score': 7.0, 'reasoning': 'Candidate appears relevant (heuristic)', 'backend': 'heuristics'}
     
-    def synthesize_results(self, agents):
-        """Synthesize all agent results into final evaluation"""
-        # Extract scores
-        integrity_score = agents.get('integrity', {}).get('score', 5)
-        quality_score = agents.get('code_quality', {}).get('score', 50) / 10
-        uniqueness_score = agents.get('uniqueness', {}).get('score', 5)
-        relevance_score = agents.get('relevance', {}).get('score', 5)
+    def run_cp_agent(self, leetcode, codeforces, resume_text, client, use_ai):
+        """Run Problem Solving analysis (LeetCode, Codeforces)"""
+        try:
+            from problem_solving import evaluate_cp_profile
+            return evaluate_cp_profile(leetcode, codeforces, resume_text)
+        except Exception as e:
+            print(f"Problem Solving Agent failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'agent': 'problem_solving', 'score': 0, 'error': str(e)}
+
+    def synthesize_results(self, agents, job_description=""):
+        """Synthesize all agent results into final evaluation with dynamic weights"""
         
-        # Weighted average
-        weights = {'integrity': 0.20, 'quality': 0.30, 'uniqueness': 0.30, 'relevance': 0.20}
+        # Get scores from agents
+        integrity_score = float(agents.get('integrity', {}).get('score', 5))
+        quality_score = float(agents.get('code_quality', {}).get('score', 50))
+        # Normalize code_quality if on 0-100 scale
+        if quality_score > 10:
+            quality_score = quality_score / 10
+        uniqueness_score = float(agents.get('uniqueness', {}).get('score', 5))
+        relevance_score = float(agents.get('relevance', {}).get('score', 5))
+        cp_score = float(agents.get('cp', {}).get('score', 0))
         
+        # Calculate dynamic weights based on job description
+        weight_info = {"weights": {"integrity": 0.15, "code_quality": 0.30, "uniqueness": 0.20, "relevance": 0.25, "cp": 0.10}, "job_type": "general"}
+        try:
+            from weight_calculator import calculate_weights
+            weight_info = calculate_weights(job_description)
+            print(f"Using weights for {weight_info['job_type']}: {weight_info['weights']}")
+        except Exception as e:
+            print(f"Weight calculator failed, using defaults: {e}")
+        
+        weights = weight_info["weights"]
+        
+        # Calculate weighted score
         overall_score = (
-            integrity_score * weights['integrity'] +
-            quality_score * weights['quality'] +
-            uniqueness_score * weights['uniqueness'] +
-            relevance_score * weights['relevance']
+            integrity_score * weights.get('integrity', 0.15) +
+            quality_score * weights.get('code_quality', 0.30) +
+            uniqueness_score * weights.get('uniqueness', 0.20) +
+            relevance_score * weights.get('relevance', 0.25) +
+            cp_score * weights.get('cp', 0.10)
         )
         
-        # Generate recommendation
-        if overall_score >= 7.0 and integrity_score >= 6.0:
+        # Check for cheater severity - auto-reject if critical
+        cheater_severity = agents.get('integrity', {}).get('cheater_severity', 'none')
+        if cheater_severity == 'critical':
+            overall_score = max(0, overall_score - 5)
+            recommendation = 'REJECT'
+            reasoning = f'FLAGGED: Critical integrity issues detected. Score: {overall_score:.1f}/10'
+        elif cheater_severity == 'high':
+            overall_score = max(0, overall_score - 2)
+            if overall_score >= 5.0:
+                recommendation = 'WAITLIST'
+                reasoning = f'Manual review required: Integrity concerns. Score: {overall_score:.1f}/10'
+            else:
+                recommendation = 'REJECT'
+                reasoning = f'Does not meet standards with integrity issues. Score: {overall_score:.1f}/10'
+        elif overall_score >= 7.0 and integrity_score >= 6.0:
             recommendation = 'PASS'
             reasoning = f'Strong candidate with overall score of {overall_score:.1f}/10'
         elif overall_score >= 5.0 and integrity_score >= 4.0:
@@ -394,15 +885,17 @@ Respond with JSON: {{"score": 0-10, "reasoning": "explanation of match"}}"""
                 'integrity': round(integrity_score, 1),
                 'code_quality': round(quality_score, 1),
                 'uniqueness': round(uniqueness_score, 1),
-                'relevance': round(relevance_score, 1)
-            }
+                'relevance': round(relevance_score, 1),
+                'cp': round(cp_score, 1)
+            },
+            'weights_used': weights,
+            'job_type_detected': weight_info.get('job_type', 'general'),
+            'cheater_severity': cheater_severity
         }
     
     def check_system_status(self):
         """Check if Ollama is running"""
-        import urllib.request
-        
-        status = {'backend': True, 'ollama': False, 'models': []}
+        status = {'backend': True, 'ollama': False, 'models': [], 'ready': True}
         
         try:
             req = urllib.request.Request('http://localhost:11434/api/tags')
@@ -417,8 +910,8 @@ Respond with JSON: {{"score": 0-10, "reasoning": "explanation of match"}}"""
         return status
     
     def log_message(self, format, *args):
-        """Quiet logging"""
-        pass
+        """Custom logging"""
+        print(f"[API] {args[0]}" if args else "")
 
 def run_server(port=3001):
     """Start the API server"""
@@ -428,22 +921,16 @@ def run_server(port=3001):
 ╔══════════════════════════════════════════════════════════════╗
 ║           CandidateAI Local API Server                       ║
 ╠══════════════════════════════════════════════════════════════╣
-║  🚀 Server running on: http://localhost:{port}                 ║
-║  🎨 Frontend:          http://localhost:3000                 ║
-║  🤖 Ollama:            http://localhost:11434                ║
-║  📊 Kestra (optional): http://localhost:8080                 ║
-╠══════════════════════════════════════════════════════════════╣
-║  Quick Start:                                                ║
-║  1. Start Ollama:  ollama serve                              ║
-║  2. Pull model:    ollama pull qwen2:1.5b                    ║
-║  3. Start frontend: cd gitverified-web && npm run dev        ║
+║  Server running on: http://localhost:{port}                    ║
+║  Frontend:          http://localhost:3000                    ║
+║  Ollama:            http://localhost:11434                   ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
     
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n👋 Server stopped")
+        print("\nServer stopped")
 
 if __name__ == '__main__':
     run_server()

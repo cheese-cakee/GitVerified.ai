@@ -1,0 +1,26 @@
+{
+  "candidate": {
+    "resume_path": "uploads/alex_resume.pdf",
+    "job_description": "Senior Software Engineer",
+    "github_url": "https://github.com/alexbuilder/react-core",
+    "leetcode_username": "alex_code"
+  },
+  "agents": {
+    "integrity": { "score": 9.5 },
+    "code_quality": { "score": 92 },
+    "uniqueness": { "score": 8.0 },
+    "relevance": { "score": 9.0 },
+    "cp": { "score": 7.5 }
+  },
+  "final": {
+    "overall_score": 9.2,
+    "recommendation": "PASS",
+    "reasoning": "Excellent candidate with strong open source contributions.",
+    "score_breakdown": {
+      "integrity": 9.5,
+      "code_quality": 9.2,
+      "uniqueness": 8.0,
+      "relevance": 9.0
+    }
+  }
+}

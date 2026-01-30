@@ -1,0 +1,70 @@
+{
+  "status": "complete",
+  "candidate": {
+    "resume_path": "data/uploads\\resume_1769502176.pdf",
+    "job_description": "cloud engineer",
+    "github_url": "",
+    "leetcode_username": "",
+    "codeforces_username": ""
+  },
+  "agents": {
+    "integrity": {
+      "agent": "integrity",
+      "score": 0,
+      "error": "No resume text available",
+      "flags": [],
+      "backend_used": "none"
+    },
+    "code_quality": {
+      "agent": "code_quality",
+      "score": 0,
+      "error": "No GitHub URL provided",
+      "backend": "none"
+    },
+    "uniqueness": {
+      "agent": "uniqueness",
+      "score": 0,
+      "reasoning": "No GitHub URL provided",
+      "backend": "none"
+    },
+    "relevance": {
+      "agent": "relevance",
+      "score": 7.0,
+      "reasoning": "Candidate appears relevant (heuristic)",
+      "backend": "heuristics"
+    },
+    "cp": {
+      "agent": "competitive_programming",
+      "score": 0.0,
+      "reasoning": "No LeetCode data available",
+      "flags": [],
+      "verified": null,
+      "credit_applied": "80%",
+      "details": {
+        "leetcode": null,
+        "codeforces": null
+      }
+    }
+  },
+  "final": {
+    "overall_score": 1.8,
+    "recommendation": "REJECT",
+    "reasoning": "Does not meet standards with overall score of 1.8/10",
+    "score_breakdown": {
+      "integrity": 0.0,
+      "code_quality": 0.0,
+      "uniqueness": 0.0,
+      "relevance": 7.0,
+      "cp": 0.0
+    },
+    "weights_used": {
+      "integrity": 0.15,
+      "code_quality": 0.3,
+      "uniqueness": 0.2,
+      "relevance": 0.25,
+      "cp": 0.1
+    },
+    "job_type_detected": "general",
+    "cheater_severity": "none"
+  }
+}

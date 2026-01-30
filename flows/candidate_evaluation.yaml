@@ -5,8 +5,8 @@ id: candidate-evaluation-hybrid
 namespace: candidateai
 
 description: |
-  Parallel candidate evaluation using quantized Oumi models and Kestra orchestration
-  Optimized for laptop deployment with memory constraints
+  Parallel candidate evaluation using local Ollama models and Kestra orchestration
+  Evaluates 4 key metrics: Integrity, Code Quality, Uniqueness, Relevance
 
 inputs:
   - name: resume_path

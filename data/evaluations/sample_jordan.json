@@ -1,0 +1,26 @@
+{
+  "candidate": {
+    "resume_path": "uploads/jordan_resume.pdf",
+    "job_description": "Junior Developer",
+    "github_url": "https://github.com/jordan/todo-app",
+    "leetcode_username": "jordan_dev"
+  },
+  "agents": {
+    "integrity": { "score": 8.0 },
+    "code_quality": { "score": 65 },
+    "uniqueness": { "score": 4.0 },
+    "relevance": { "score": 7.0 },
+    "cp": { "score": 5.0 }
+  },
+  "final": {
+    "overall_score": 6.8,
+    "recommendation": "WAITLIST",
+    "reasoning": "Decent skills but projects are generic.",
+    "score_breakdown": {
+      "integrity": 8.0,
+      "code_quality": 6.5,
+      "uniqueness": 4.0,
+      "relevance": 7.0
+    }
+  }
+}

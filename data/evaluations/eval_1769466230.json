@@ -1,0 +1,73 @@
+{
+  "status": "complete",
+  "candidate": {
+    "resume_path": "data/uploads\\resume_1769466218.pdf",
+    "job_description": "junior cloud developer",
+    "github_url": "https://github.com/cheese-cakee",
+    "leetcode_username": "",
+    "codeforces_username": ""
+  },
+  "agents": {
+    "integrity": {
+      "agent": "integrity",
+      "score": 8.5,
+      "verdict": "AUTHENTIC",
+      "reasoning": "Integrity check complete. 0 issues detected.",
+      "flags": [],
+      "cheater_severity": "none",
+      "text_length": 2592,
+      "backend_used": "cheater_detector"
+    },
+    "code_quality": {
+      "agent": "code_quality",
+      "score": 0,
+      "error": "GitHub fetch failed: Invalid GitHub URL format",
+      "backend_used": "github_api"
+    },
+    "uniqueness": {
+      "agent": "uniqueness",
+      "score": 5.0,
+      "error": "GitHub fetch failed: Invalid GitHub URL format",
+      "reasoning": "Using neutral score due to fetch failure",
+      "backend_used": "heuristics"
+    },
+    "relevance": {
+      "agent": "relevance",
+      "score": 7.0,
+      "reasoning": "Candidate appears relevant (heuristic)",
+      "backend": "heuristics"
+    },
+    "cp": {
+      "agent": "competitive_programming",
+      "score": 0.0,
+      "reasoning": "LeetCode profile not found or private",
+      "flags": [],
+      "details": {
+        "leetcode": null,
+        "codeforces": null
+      },
+      "backend_used": "heuristics"
+    }
+  },
+  "final": {
+    "overall_score": 4.0,
+    "recommendation": "REJECT",
+    "reasoning": "Does not meet standards with overall score of 4.0/10",
+    "score_breakdown": {
+      "integrity": 8.5,
+      "code_quality": 0.0,
+      "uniqueness": 5.0,
+      "relevance": 7.0,
+      "cp": 0.0
+    },
+    "weights_used": {
+      "integrity": 0.15,
+      "code_quality": 0.3,
+      "uniqueness": 0.2,
+      "relevance": 0.25,
+      "cp": 0.1
+    },
+    "job_type_detected": "general",
+    "cheater_severity": "none"
+  }
+}

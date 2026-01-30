@@ -1,0 +1,112 @@
+{
+  "status": "complete",
+  "candidate": {
+    "resume_path": "data/uploads\\resume_1769467877.pdf",
+    "job_description": "junior dev",
+    "github_url": "",
+    "leetcode_username": "",
+    "codeforces_username": ""
+  },
+  "agents": {
+    "integrity": {
+      "agent": "integrity",
+      "score": 6.5,
+      "verdict": "SUSPICIOUS",
+      "reasoning": "Integrity check complete. 2 issues detected.",
+      "flags": [
+        "\u26a0\ufe0f GITHUB GAMING - Suspicious repository patterns",
+        "  \u2022 GitHub repository created very recently"
+      ],
+      "cheater_severity": "medium",
+      "text_length": 2734,
+      "backend_used": "cheater_detector"
+    },
+    "code_quality": {
+      "agent": "code_quality",
+      "score": 88,
+      "verdict": "EXCELLENT",
+      "security_score": 88,
+      "flags": [],
+      "positive_indicators": [
+        "Logging implemented",
+        "Documentation directory present",
+        "Comprehensive README"
+      ],
+      "files_analyzed": 3,
+      "primary_language": "TypeScript",
+      "backend_used": "github_api"
+    },
+    "uniqueness": {
+      "agent": "uniqueness",
+      "score": 8.8,
+      "verdict": "HIGHLY_ORIGINAL",
+      "reasoning": "README claims originality; Comprehensive documentation; Substantial codebase (66 files); Has Docker configuration",
+      "tutorial_flags": [],
+      "original_flags": [],
+      "repo_name": "GitVerified.ai",
+      "backend_used": "github_api"
+    },
+    "relevance": {
+      "agent": "relevance",
+      "score": 7.0,
+      "reasoning": "Candidate appears relevant (heuristic)",
+      "backend": "heuristics"
+    },
+    "cp": {
+      "agent": "competitive_programming",
+      "score": 7.6,
+      "reasoning": "Claims from resume - not verified via API; LeetCode (\u26a0 Claimed): 300 solved; Codeforces (\u26a0 Claimed): 2100 (master)",
+      "flags": [
+        "\u26a0\ufe0f Unverified claims (80% credit)",
+        "Good grasp of complex algorithms",
+        "CP: MASTER"
+      ],
+      "verified": false,
+      "credit_applied": "80%",
+      "details": {
+        "leetcode": {
+          "platform": "leetcode",
+          "username": "claimed",
+          "total_solved": 300,
+          "easy": 120,
+          "medium": 135,
+          "hard": 45,
+          "ranking": 0,
+          "verified": false,
+          "source": "resume_claim"
+        },
+        "codeforces": {
+          "platform": "codeforces",
+          "username": "claimed",
+          "rating": 2100,
+          "rank": "master",
+          "maxRating": 2100,
+          "maxRank": "master",
+          "verified": false,
+          "source": "resume_claim"
+        }
+      }
+    }
+  },
+  "final": {
+    "overall_score": 7.9,
+    "recommendation": "PASS",
+    "reasoning": "Strong candidate with overall score of 7.9/10",
+    "score_breakdown": {
+      "integrity": 6.5,
+      "code_quality": 8.8,
+      "uniqueness": 8.8,
+      "relevance": 7.0,
+      "cp": 7.6
+    },
+    "weights_used": {
+      "integrity": 0.15,
+      "code_quality": 0.3,
+      "uniqueness": 0.2,
+      "relevance": 0.25,
+      "cp": 0.1
+    },
+    "job_type_detected": "general",
+    "cheater_severity": "medium"
+  }
+}

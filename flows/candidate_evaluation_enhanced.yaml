@@ -20,6 +20,10 @@ inputs:
     type: STRING
     description: "LeetCode username (optional)"
     required: false
+  - name: codeforces_username
+    type: STRING
+    description: "Codeforces username (optional)"
+    required: false
   - name: use_ai_models
     type: BOOLEAN
     description: "Use local AI models (Ollama) if available"
@@ -82,6 +86,7 @@ tasks:
           "job_description": "{{ inputs.job_description }}",
           "github_url": "{{ inputs.github_url }}",
           "leetcode_username": "{{ inputs.leetcode_username }}",
+          "codeforces_username": "{{ inputs.codeforces_username }}",
           "base_path": base_path,
           "ollama_available": ollama_available,
           "use_ai_models": "{{ inputs.use_ai_models }}"
@@ -284,6 +289,49 @@ tasks:
     dependsOn:
       - prepare-data
 
+  - id: cp-analysis-enhanced
+    type: io.kestra.plugin.scripts.python.Script
+    runner: DOCKER
+    docker:
+      image: python:3.9-slim
+    volumes:
+      - ./data:/data
+      - ./models:/models
+    inputFiles:
+      - pymupdf: requirements.txt
+    script: |
+      import json
+      import sys
+      import os
+      sys.path.append('/app/agents')
+      
+      base_path = "{{ vars.base_path }}"
+      use_ai = "{{ inputs.use_ai_models }}"
+      
+      # Load context
+      with open(f"{base_path}.context.json", "r") as f:
+          context = json.load(f)
+      
+      # Enhanced CP analysis
+      from competitive_programming_enhanced import analyze_cp_enhanced
+      
+      print(f"Starting enhanced CP analysis (AI: {use_ai})")
+      result = analyze_cp_enhanced(
+          leetcode_user=context.get("leetcode_username"),
+          codeforces_user=context.get("codeforces_username"),
+          use_ai_models=use_ai,
+          ollama_available=context["ollama_available"]
+      )
+      
+      # Save result
+      with open(f"{base_path}.cp.json", "w") as f:
+          json.dump(result, f, indent=2)
+      
+      print(json.dumps(result))
+
+    dependsOn:
+      - prepare-data
+
   # Enhanced result aggregation with AI synthesis
   - id: enhanced-synthesis
     type: io.kestra.plugin.scripts.python.Script
@@ -305,7 +353,7 @@ tasks:
       
       # Load all agent results
       results = {}
-      for agent in ["integrity", "code_quality", "uniqueness", "relevance"]:
+      for agent in ["integrity", "code_quality", "uniqueness", "relevance", "cp"]:
           file_path = f"{base_path}.{agent}.json"
           if os.path.exists(file_path):
               with open(file_path, "r") as f:
@@ -313,18 +361,27 @@ tasks:
       
       # Calculate scores with proper scaling
       integrity_score = results.get("integrity", {}).get("score", 0)
-      quality_score = results.get("code_quality", {}).get("score", 50) / 10  # Convert to 0-10 scale
+      quality_score = results.get("code_quality", {}).get("score", 50) / 10
       uniqueness_score = results.get("uniqueness", {}).get("score", 5)
       relevance_score = results.get("relevance", {}).get("score", 5)
+      cp_score = results.get("cp", {}).get("score", 0)
       
-      # Weighted scoring
-      weights = {"integrity": 0.20, "quality": 0.30, "uniqueness": 0.30, "relevance": 0.20}
+      # Weighted scoring (CP is 20%, adjusting others)
+      # Integrity: 15%, Quality: 25%, Uniqueness: 20%, Relevance: 20%, CP: 20%
+      weights = {
+          "integrity": 0.15, 
+          "quality": 0.25, 
+          "uniqueness": 0.20, 
+          "relevance": 0.20,
+          "cp": 0.20
+      }
       
       overall_score = (
           integrity_score * weights["integrity"] +
           quality_score * weights["quality"] +
           uniqueness_score * weights["uniqueness"] +
-          relevance_score * weights["relevance"]
+          relevance_score * weights["relevance"] +
+          cp_score * weights["cp"]
       )
       
       # Generate recommendation
@@ -355,7 +412,7 @@ tasks:
               response = requests.post(
                   "http://host.docker.internal:11434/api/generate",
                   json={
-                      "model": "qwen2:1.5b",
+                      "model": "qwen2.5-coder:14b",
                       "prompt": synthesis_prompt,
                       "stream": False,
                       "options": {"temperature": 0.3, "num_predict": 200}
@@ -411,6 +468,7 @@ tasks:
       - code-quality-scan-enhanced
       - uniqueness-analysis-enhanced
       - relevance-analysis-enhanced
+      - cp-analysis-enhanced
 
 outputs:
   - id: enhanced-evaluation-result
