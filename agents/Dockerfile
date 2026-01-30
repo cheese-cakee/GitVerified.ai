@@ -17,10 +17,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install quantized model dependencies
 RUN pip install --no-cache-dir \
-    oumi>=0.8.0 \
+    kestra \
+    pymupdf \
+    requests \
+    redis \
+    scikit-learn \
+    numpy \
+    pandas \
+    black \
+    flake8 \
+    openai \
+    pydantic \
+    tqdm \
     bitsandbytes \
-    accelerate \
-    psutil
+    accelerate
 
 # Copy agents
 COPY agents/ /app/agents/

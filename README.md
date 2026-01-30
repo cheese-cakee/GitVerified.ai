@@ -19,7 +19,7 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ### 2. Download AI Model
 
 ```bash
-ollama pull qwen2:1.5b
+ollama pull qwen2.5-coder:14b
 ```
 
 ### 3. Start Backend
