@@ -38,7 +38,7 @@ class HybridModelClient:
             response = requests.post(
                 "http://localhost:11434/api/generate",
                 json={
-                    "model": "qwen2:1.5b",
+                    "model": "qwen2.5-coder:14b",
                     "prompt": "test",
                     "stream": False
                 },
@@ -46,8 +46,8 @@ class HybridModelClient:
             )
             if response.status_code == 200:
                 self.ollama_available = True
-                self.selected_model = "qwen2:1.5b"
-                print("> [HybridModel] Ollama qwen2:1.5b available", file=sys.stderr)
+                self.selected_model = "qwen2.5-coder:14b"
+                print("> [HybridModel] Ollama qwen2.5-coder:14b available", file=sys.stderr)
                 return True
         except Exception as e:
             print(f"> [HybridModel] Ollama test failed: {e}", file=sys.stderr)
